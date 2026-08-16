@@ -1,13 +1,13 @@
 # dsh-task-modes
 
-DeepSeek Harness Web 的任务模式插件：普通、第一性原理和只读对抗式审查。
+DeepSeek Harness Web 的任务模式插件：正常模式、第一性原理和只读对抗式审查。
 
 ## 安装
 
 通过 GitHub tag 安装到 Web profile：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.6
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.7
 ```
 
 npm 发布后可使用：
@@ -20,7 +20,7 @@ dsh plugin --profile web add @graysilver/dsh-task-modes
 
 ## 模式
 
-- **普通**：不添加额外提示词。
+- **正常模式**：不添加额外提示词。
 - **第一性原理**：向 system prompt 加入目标、事实与假设、约束、推导和验证要求。
 - **对抗式审查**：文本答复完成后启动 fork 子 Agent，审查当前任务与候选答复，并保存 Markdown 报告。
 

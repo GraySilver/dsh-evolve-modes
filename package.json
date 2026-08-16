@@ -1,6 +1,6 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Task modes and read-only adversarial review for DeepSeek Harness Web",
   "license": "MIT",
   "type": "module",

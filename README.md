@@ -7,7 +7,7 @@ Task execution modes for DeepSeek Harness Web: normal execution, first-principle
 Install the tagged GitHub bundle into a Web profile:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.6
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.7
 ```
 
 After the npm release is available:
@@ -20,7 +20,7 @@ Restart the Web profile after installation. The selector appears beside the comp
 
 ## Modes
 
-- **Normal** sends work without additional guidance.
+- **Normal mode** sends work without additional guidance.
 - **First principles** adds a system-prompt section requiring objectives, facts versus assumptions, constraints, derivation, and verification.
 - **Adversarial review** starts a forked child after a text answer is complete. It audits the current request and answer, then saves a Markdown report for the session.
 
