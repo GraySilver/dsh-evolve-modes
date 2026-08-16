@@ -1,6 +1,6 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Task modes for DeepSeek Harness Web: normal execution, first-principles prompting, and independent adversarial review.",
   "license": "MIT",
   "homepage": "https://github.com/GraySilver/dsh-task-modes#readme",

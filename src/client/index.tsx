@@ -1,11 +1,19 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type {
+  ClientContext,
+  ContextMessageNode,
+  ConversationLocation,
+  ConversationNodeContext,
+  ConversationNodeDefinition,
+  ConversationViewNode,
+} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { IconCheckOutline14, IconChevronDownOutline14, IconThinkOutline14, MarkdownText, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import { FIRST_PRINCIPLES } from '../prompt.ts'
 import type { TaskMode } from '../types.ts'
 
 type Mode = TaskMode
@@ -13,8 +21,8 @@ interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<v
 type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
 const modes: readonly { id: Mode; key: keyof typeof en }[] = [{ id: 'normal', key: 'normal' }, { id: 'first-principles', key: 'firstPrinciples' }, { id: 'adversarial-review', key: 'review' }]
 
-/** Required browser services for the task-mode controls. */
-export const inject = ['slots', 'locale', 'remote', 'remote.commands']
+/** Required browser services for the task-mode controls and Trajectory projection. */
+export const inject = ['slots', 'locale', 'remote', 'remote.commands', 'conversationEvents']
 
 const triggerStyle: CSSProperties = { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', display: 'inline-flex', fontSize: 13, gap: 4, height: 28, padding: '0 6px 0 8px' }
 const reviewStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', borderRadius: 6, boxSizing: 'border-box', color: 'var(--dsw-alias-label-secondary)', fontSize: 12, lineHeight: '18px', padding: '8px 12px', width: '100%' }
@@ -56,6 +64,53 @@ function ReviewTail({ turn, review, t }: ReviewProps) {
 
 function TaskModeReviewCommandView() { return null }
 
+interface TrajectoryContextViewNode extends ConversationViewNode {
+  readonly target: 'trajectory'
+  readonly anchorSeq: number
+  readonly location: ConversationLocation
+  readonly data: { readonly kind: 'node'; readonly node: ContextMessageNode }
+}
+
+function trajectoryContextNode(
+  context: ConversationNodeContext<ContextMessageNode>,
+): TrajectoryContextViewNode | null {
+  if (context.state === undefined) return null
+  return {
+    key: context.key,
+    kind: context.kind,
+    id: context.id,
+    target: 'trajectory',
+    anchorSeq: context.state.seq,
+    location: context.start?.location ?? { kind: 'unresolved' },
+    data: { kind: 'node', node: context.state },
+  }
+}
+
+const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
+  kind: 'task-mode-first-principles-injection',
+  target: 'trajectory',
+  match: event => event.type === 'request/header'
+    && event.data.header.system?.includes(FIRST_PRINCIPLES) === true
+    ? { id: String(event.seq), role: 'start' }
+    : null,
+  start: (_context, match) => {
+    if (match.event.type !== 'request/header') {
+      throw new Error('first-principles Trajectory projection requires request/header')
+    }
+    return {
+      kind: 'context',
+      seq: match.event.seq,
+      time: match.event.time,
+      content: [{ type: 'text', text: FIRST_PRINCIPLES }],
+      source: { kind: 'plugin', plugin: 'dsh-task-modes:first-principles' },
+      provenance: { role: 'inject', label: 'dsh-task-modes:first-principles' },
+      form: null,
+    }
+  },
+  update: context => context.state,
+  buildViewNode: trajectoryContextNode,
+}
+
 const en = { normal: 'Normal mode', firstPrinciples: 'First principles', review: 'Adversarial review' }
 const zh = { normal: '正常模式', firstPrinciples: '第一性原理', review: '对抗式审查' }
 type TaskModesKey = keyof typeof en
@@ -64,12 +119,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap
 /** Mount the task-mode selector and persisted review history for Web profiles. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('taskModes', { en, zh }), 'dsh-task-modes: locale')
+  ctx.conversationEvents.register(firstPrinciplesTrajectoryDefinition)
   const execute = async (sessionId: string, line: string): Promise<string> => {
     const response = await ctx.remote.commands.execute(sessionId as never, line)
     if (!response.ok) throw new Error(`${response.error.message} (${response.error.code})`)
     if (response.value === undefined) throw new Error(`unknown command: ${line}`)
     if (response.value.result.kind === 'error') throw new Error(response.value.result.text)
-    return response.value.result.text
+    return response.value.result.text ?? ''
   }
   const faceFor = (sessionId: string): ControlFace => ({
     getMode: async () => { const text = await execute(sessionId, '/task-mode'); const mode = text.slice('task mode: '.length); return mode === 'first-principles' || mode === 'adversarial-review' ? mode : 'normal' },

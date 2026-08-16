@@ -5,10 +5,10 @@ import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-storage-domain'
 import type {} from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import { FIRST_PRINCIPLES } from './prompt.ts'
 import { addReview, recordFor, setMode, taskModesDomain } from './storage.ts'
 import type { AdversarialReview, TaskMode } from './types.ts'
 
-const FIRST_PRINCIPLES = 'For this task, reason from first principles. State the objective and success criteria, separate verified facts from assumptions, identify hard constraints, derive the solution from those facts, and describe how you will verify the result. Do not treat conventions or guesses as requirements.'
 const READ_ONLY_REVIEW_TOOLS = ['read', 'glob', 'grep', 'read_image'] as const
 
 export interface Config { shellTool: 'bash' | 'pwsh' }

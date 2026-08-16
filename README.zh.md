@@ -11,13 +11,13 @@
 无需全局安装 DSH，直接将固定版本的 npm bundle 安装到 Web profile：
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
 ```
 
 如果已经全局安装 `dsh`，可以使用更短的命令：
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
 ```
 
 安装后重启 Web profile，模式选择器会出现在输入区工具旁。
@@ -35,7 +35,7 @@ Git 安装包会执行安装期代码，请只安装可信 revision。
 | 模式 | 行为 | 适用场景 |
 | --- | --- | --- |
 | 正常模式 | 不添加额外模式指令，直接发送请求。 | 日常工作。 |
-| 第一性原理 | 向 system prompt 注入目标、事实与假设、约束、推导和验证要求。 | 模糊或影响较大的决策。 |
+| 第一性原理 | 向 system prompt 注入目标、事实与假设、约束、推导和验证要求。Trajectory 会从持久化请求头投影该段原文，并以现有上下文样式显示为检查记录。 | 模糊或影响较大的决策。 |
 | 对抗式审查 | 父 Agent 完成文本答复后，启动 fork 子 Agent 检查当前任务和答复，并在该答复下方显示 Markdown 报告。 | 发现遗漏和缺少依据的假设。 |
 
 审查器可以使用 `read`、`glob`、`grep`、`read_image` 和平台 shell（macOS/Linux 为 `bash`，Windows 为 `pwsh`）。提示词要求只读检查且不启动后台进程。审查失败会记录为不可用，不会阻断父 Agent 的答复。
@@ -62,6 +62,8 @@ bundle 使用独立的 `graysilver_task_modes` storage domain 保存记录，不
 
 Web 端会在对应 AI 回复下方以折叠 Markdown 显示报告，展开后内容区高度固定并可滚动。
 
+第一性原理的 Trajectory 行仅用于检查。它只会在持久化的 `request/header.system` 确实包含完整提示词时派生，不会追加用户消息，也不会改变模型请求。切换到其他模式后，下一次模型请求不再包含该 section；先前的 Trajectory 行仍保留，用于证明历史请求当时使用了什么。
+
 ## 配置
 
 bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时才覆盖：
@@ -80,7 +82,7 @@ bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时�
 
 ## 发布
 
-当前版本见 [v0.1.8](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.8)。
+当前版本见 [v0.1.9](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.9)。
 
 ## 反馈
 

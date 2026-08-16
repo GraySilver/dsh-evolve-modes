@@ -11,13 +11,13 @@ An independent, installable DeepSeek Harness Web bundle that adds three task mod
 Install the pinned npm release into a Web profile without requiring a global DSH installation:
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
 ```
 
 If `dsh` is already installed globally, use the shorter command:
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
 ```
 
 Restart the Web profile after installation. The mode selector appears beside the composer tools.
@@ -35,7 +35,7 @@ Git-hosted plugins execute install-time code, so install only revisions you trus
 | Mode | Behavior | Best for |
 | --- | --- | --- |
 | Normal mode | Sends the request without extra mode instructions. | Everyday work. |
-| First Principles | Injects a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. | Ambiguous or high-leverage decisions. |
+| First Principles | Injects a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. Trajectory projects that exact section from the persisted request header as a context-style inspection row. | Ambiguous or high-leverage decisions. |
 | Adversarial Review | After the parent text answer completes, starts a forked child agent to inspect the current task and answer, then renders a Markdown report below that reply. | Catching omissions and unsupported assumptions. |
 
 The reviewer can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell (`bash` on macOS/Linux or `pwsh` on Windows). Its prompt requests non-mutating inspection and no background processes. A reviewer failure is recorded as unavailable and never blocks the parent answer.
@@ -62,6 +62,8 @@ Use these commands in the Web composer:
 
 The Web client renders each report as collapsed Markdown beneath its corresponding AI reply. Expanding it opens a fixed-height, scrollable panel.
 
+The first-principles Trajectory row is inspection-only. It is derived from a persisted `request/header.system` that contains the exact guidance; it does not append a user message or change the model request. Switching to another mode removes the section from the next model request, while earlier Trajectory rows remain as evidence of what those historical requests used.
+
 ## Configuration
 
 The bundle selects the normal platform shell automatically. Override it only when the target profile registers that tool:
@@ -80,7 +82,7 @@ Requires a DeepSeek Harness release that provides the Web plugin loader, client 
 
 ## Release
 
-See [v0.1.8](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.8) for the current release.
+See [v0.1.9](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.9) for the current release.
 
 ## Feedback
 
