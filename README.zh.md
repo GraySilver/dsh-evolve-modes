@@ -4,17 +4,31 @@
 
 一个可独立安装的 DeepSeek Harness Web bundle，提供三种任务模式：正常执行、第一性原理提示词和独立 fork 的对抗式审查。它通过 DSH 插件层工作，不修改 DSH core。
 
-![dsh-task-modes](assets/social-preview.png)
+![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
 ## 安装
 
-将固定 commit 的 GitHub bundle 安装到 Web profile：
+无需全局安装 DSH，直接将固定版本的 npm bundle 安装到 Web profile：
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+```
+
+如果已经全局安装 `dsh`，可以使用更短的命令：
+
+```sh
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+```
+
+安装后重启 Web profile，模式选择器会出现在输入区工具旁。
+
+需要审计源码或进行开发时，可以改用固定 Git revision：
 
 ```sh
 dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
 ```
 
-安装后重启 Web profile，模式选择器会出现在输入区工具旁。固定完整 commit 可以让安装结果可复现；Git 安装包会执行安装期代码，请只安装可信 revision。
+Git 安装包会执行安装期代码，请只安装可信 revision。
 
 ## 模式
 
@@ -26,7 +40,7 @@ dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6
 
 审查器可以使用 `read`、`glob`、`grep`、`read_image` 和平台 shell（macOS/Linux 为 `bash`，Windows 为 `pwsh`）。提示词要求只读检查且不启动后台进程。审查失败会记录为不可用，不会阻断父 Agent 的答复。
 
-![对抗式审查面板](assets/task-modes-review.png)
+![对抗式审查面板](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
 
 ### 成本与限制
 
@@ -62,7 +76,11 @@ bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时�
 
 ## 兼容性
 
-需要提供 Web 插件加载器、客户端 UI slots、storage domain 和 fork 子 Agent 的 DeepSeek Harness 版本。本仓库当前只分发 GitHub bundle；npm 发布有意延后。
+需要提供 Web 插件加载器、客户端 UI slots、storage domain 和 fork 子 Agent 的 DeepSeek Harness 版本。npm 是推荐的稳定分发渠道；固定 Git revision 继续用于源码审计和开发。
+
+## 发布
+
+当前版本见 [v0.1.8](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.8)。
 
 ## 反馈
 

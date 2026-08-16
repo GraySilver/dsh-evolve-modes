@@ -1,8 +1,24 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.1.7",
-  "description": "Task modes and read-only adversarial review for DeepSeek Harness Web",
+  "version": "0.1.8",
+  "description": "Task modes for DeepSeek Harness Web: normal execution, first-principles prompting, and independent adversarial review.",
   "license": "MIT",
+  "homepage": "https://github.com/GraySilver/dsh-task-modes#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GraySilver/dsh-task-modes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GraySilver/dsh-task-modes/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "ai-agents",
+    "prompt-engineering",
+    "agent-review"
+  ],
   "type": "module",
   "packageManager": "pnpm@10.15.0",
   "engines": { "node": "^22.19.0 || >=24.0.0" },
@@ -13,11 +29,16 @@
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
     "./package.json": "./package.json"
   },
-  "files": ["lib", "src", "cordis.patch.yml", "README.md", "README.zh.md", "LICENSE"],
+  "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.zh.md", "LICENSE"],
   "scripts": {
     "build": "tsdown && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
     "test": "node --test tests/*.test.mjs",
-    "pack:check": "corepack pnpm pack --pack-destination dist"
+    "pack:check": "corepack pnpm pack --pack-destination dist",
+    "prepublishOnly": "corepack pnpm run build && corepack pnpm test"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },

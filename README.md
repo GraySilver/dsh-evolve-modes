@@ -4,17 +4,31 @@
 
 An independent, installable DeepSeek Harness Web bundle that adds three task modes: normal execution, first-principles prompting, and an independent forked adversarial review. It works through the DSH plugin layer and does not modify DSH core.
 
-![dsh-task-modes](assets/social-preview.png)
+![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
 ## Install
 
-Install a pinned Git revision into a Web profile:
+Install the pinned npm release into a Web profile without requiring a global DSH installation:
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+```
+
+If `dsh` is already installed globally, use the shorter command:
+
+```sh
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.8
+```
+
+Restart the Web profile after installation. The mode selector appears beside the composer tools.
+
+For source auditing or development, install the pinned Git revision instead:
 
 ```sh
 dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
 ```
 
-Restart the Web profile after installation. The mode selector appears beside the composer tools. Pinning a full commit makes the installed code reproducible; Git-hosted plugins execute install-time code, so install only revisions you trust.
+Git-hosted plugins execute install-time code, so install only revisions you trust.
 
 ## Modes
 
@@ -26,7 +40,7 @@ Restart the Web profile after installation. The mode selector appears beside the
 
 The reviewer can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell (`bash` on macOS/Linux or `pwsh` on Windows). Its prompt requests non-mutating inspection and no background processes. A reviewer failure is recorded as unavailable and never blocks the parent answer.
 
-![Adversarial review panel](assets/task-modes-review.png)
+![Adversarial review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
 
 ### Cost and limits
 
@@ -62,7 +76,11 @@ Adversarial review requires the fork/subagent capability in the selected profile
 
 ## Compatibility
 
-Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, and forked subagents. The repository currently distributes GitHub bundles only; npm publication is intentionally deferred.
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, and forked subagents. npm is the recommended stable distribution channel; pinned Git revisions remain available for source auditing and development.
+
+## Release
+
+See [v0.1.8](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.8) for the current release.
 
 ## Feedback
 
