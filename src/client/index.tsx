@@ -65,5 +65,5 @@ export function apply(ctx: ClientContext): void {
     review: async turn => await execute(sessionId, `/task-mode review ${turn}`),
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
-  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'task-mode-reviews', order: 25, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
+  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
 }
