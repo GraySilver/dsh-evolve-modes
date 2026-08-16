@@ -1,0 +1,55 @@
+import { useEffect, useState } from 'react'
+import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import { IconChevronDownOutline14, IconThinkOutline14, MarkdownText, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import type { TaskMode } from '../types.ts'
+import css from './task-modes.module.css'
+
+type Mode = TaskMode
+interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<void>; reviews(): Promise<string> }
+type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
+const modes: readonly { id: Mode; key: keyof typeof en }[] = [{ id: 'normal', key: 'normal' }, { id: 'first-principles', key: 'firstPrinciples' }, { id: 'adversarial-review', key: 'review' }]
+
+function TaskModeControl({ getMode, setMode, t }: ControlProps) {
+  const [mode, setCurrent] = useState<Mode>('normal'); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false)
+  useEffect(() => { void getMode().then(setCurrent).catch(() => {}) }, [getMode])
+  const selected = modes.find(item => item.id === mode) ?? modes[0]
+  const items: MenuEntry[] = modes.map(item => ({ id: item.id, label: t(item.key), icon: item.id === 'normal' ? undefined : <IconThinkOutline14 /> }))
+  return <Menu open={open} onClose={() => { setOpen(false) }} items={items} selectedId={mode} onSelect={(id) => {
+    if (id !== 'normal' && id !== 'first-principles' && id !== 'adversarial-review') return
+    setOpen(false); setBusy(true); void setMode(id).then(() => setCurrent(id)).finally(() => setBusy(false))
+  }} side="top" anchor={<button type="button" className={css.trigger} disabled={busy} aria-haspopup="menu" aria-expanded={open} onClick={() => { setOpen(value => !value) }}><span>{t(selected.key)}</span><IconChevronDownOutline14 /></button>} />
+}
+
+type ReviewProps = PropsRuntime<'conversation.input.dock'> & PropsLocale<'taskModes'> & InjectFace<Pick<ControlFace, 'reviews'>>
+function ReviewDock({ reviews, t }: ReviewProps) {
+  const [text, setText] = useState<string | undefined>(undefined)
+  useEffect(() => { let live = true; void reviews().then(value => { if (live) setText(value) }).catch(() => { if (live) setText('') }); return () => { live = false } }, [reviews])
+  if (text === undefined || text === '') return null
+  return <details className={css.review}><summary><IconThinkOutline14 /> {t('review')}</summary><MarkdownText text={text} /></details>
+}
+
+const en = { normal: 'Normal', firstPrinciples: 'First principles', review: 'Adversarial review' }
+const zh = { normal: '普通', firstPrinciples: '第一性原理', review: '对抗式审查' }
+type TaskModesKey = keyof typeof en
+declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap { taskModes: TaskModesKey } }
+
+/** Mount the task-mode selector and persisted review history for Web profiles. */
+export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register('taskModes', { en, zh }), 'dsh-task-modes: locale')
+  const execute = async (sessionId: string, line: string): Promise<string> => {
+    const response = await ctx.remote.commands.execute(sessionId as never, line)
+    if (!response.ok) throw new Error(response.error.message)
+    return response.value?.result.text ?? ''
+  }
+  const faceFor = (sessionId: string): ControlFace => ({
+    getMode: async () => { const text = await execute(sessionId, '/task-mode'); const mode = text.slice('task mode: '.length); return mode === 'first-principles' || mode === 'adversarial-review' ? mode : 'normal' },
+    setMode: async mode => { await execute(sessionId, `/task-mode ${mode}`) },
+    reviews: async () => await execute(sessionId, '/task-mode reviews'),
+  })
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'task-mode-reviews', order: 25, locale: 'taskModes', inject: sessionId => ({ reviews: faceFor(sessionId).reviews }) }, ReviewDock))
+}

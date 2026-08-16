@@ -1,0 +1,15 @@
+{
+  "extends": "../oh-my-dsh/tsconfig.base.client.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "declaration": true,
+    "declarationDir": "lib/types",
+    "outDir": "lib/types",
+    "rootDir": "src",
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

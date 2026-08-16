@@ -1,0 +1,6 @@
+.trigger { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 13px; cursor: pointer; }
+.trigger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+.trigger:disabled { cursor: default; opacity: .65; }
+.review { box-sizing: border-box; width: 100%; padding: 8px 12px; border-radius: 6px; background: var(--dsw-alias-bg-module-platform); color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.review summary { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
+.review :global(pre) { overflow-x: auto; }

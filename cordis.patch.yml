@@ -1,0 +1,5 @@
+- insert:
+    - id: dsh-task-modes
+      name: '@graysilver/dsh-task-modes'
+      config:
+        shellTool: !!js "process.platform === 'win32' ? 'pwsh' : 'bash'"
