@@ -7,7 +7,7 @@ Task execution modes for DeepSeek Harness Web: normal execution, first-principle
 Install the tagged GitHub bundle into a Web profile:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.0
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.1
 ```
 
 After the npm release is available:

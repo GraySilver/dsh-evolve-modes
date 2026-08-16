@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -6,12 +6,15 @@ import { IconChevronDownOutline14, IconThinkOutline14, MarkdownText, Menu } from
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TaskMode } from '../types.ts'
-import css from './task-modes.module.css'
 
 type Mode = TaskMode
 interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<void>; reviews(): Promise<string> }
 type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
 const modes: readonly { id: Mode; key: keyof typeof en }[] = [{ id: 'normal', key: 'normal' }, { id: 'first-principles', key: 'firstPrinciples' }, { id: 'adversarial-review', key: 'review' }]
+
+const triggerStyle: CSSProperties = { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', display: 'inline-flex', fontSize: 13, gap: 4, height: 28, padding: '0 6px 0 8px' }
+const reviewStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', borderRadius: 6, boxSizing: 'border-box', color: 'var(--dsw-alias-label-secondary)', fontSize: 13, lineHeight: '20px', padding: '8px 12px', width: '100%' }
+const reviewSummaryStyle: CSSProperties = { alignItems: 'center', cursor: 'pointer', display: 'flex', fontWeight: 500, gap: 6 }
 
 function TaskModeControl({ getMode, setMode, t }: ControlProps) {
   const [mode, setCurrent] = useState<Mode>('normal'); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false)
@@ -21,7 +24,7 @@ function TaskModeControl({ getMode, setMode, t }: ControlProps) {
   return <Menu open={open} onClose={() => { setOpen(false) }} items={items} selectedId={mode} onSelect={(id) => {
     if (id !== 'normal' && id !== 'first-principles' && id !== 'adversarial-review') return
     setOpen(false); setBusy(true); void setMode(id).then(() => setCurrent(id)).finally(() => setBusy(false))
-  }} side="top" anchor={<button type="button" className={css.trigger} disabled={busy} aria-haspopup="menu" aria-expanded={open} onClick={() => { setOpen(value => !value) }}><span>{t(selected.key)}</span><IconChevronDownOutline14 /></button>} />
+  }} side="top" anchor={<button type="button" style={triggerStyle} disabled={busy} aria-haspopup="menu" aria-expanded={open} onClick={() => { setOpen(value => !value) }}><span>{t(selected.key)}</span><IconChevronDownOutline14 /></button>} />
 }
 
 type ReviewProps = PropsRuntime<'conversation.input.dock'> & PropsLocale<'taskModes'> & InjectFace<Pick<ControlFace, 'reviews'>>
@@ -29,7 +32,7 @@ function ReviewDock({ reviews, t }: ReviewProps) {
   const [text, setText] = useState<string | undefined>(undefined)
   useEffect(() => { let live = true; void reviews().then(value => { if (live) setText(value) }).catch(() => { if (live) setText('') }); return () => { live = false } }, [reviews])
   if (text === undefined || text === '') return null
-  return <details className={css.review}><summary><IconThinkOutline14 /> {t('review')}</summary><MarkdownText text={text} /></details>
+  return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconThinkOutline14 /> {t('review')}</summary><MarkdownText text={text} /></details>
 }
 
 const en = { normal: 'Normal', firstPrinciples: 'First principles', review: 'Adversarial review' }

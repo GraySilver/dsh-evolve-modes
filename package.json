@@ -1,6 +1,6 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Task modes and read-only adversarial review for DeepSeek Harness Web",
   "license": "MIT",
   "type": "module",
@@ -15,9 +15,9 @@
   },
   "files": ["lib", "src", "cordis.patch.yml", "README.md", "README.zh.md", "LICENSE"],
   "scripts": {
-    "build": "node scripts/verify-artifacts.mjs",
+    "build": "tsdown && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
     "test": "node --test tests/*.test.mjs",
-    "pack:check": "pnpm pack --pack-destination dist --dry-run"
+    "pack:check": "corepack pnpm pack --pack-destination dist"
   },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
