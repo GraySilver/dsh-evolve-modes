@@ -1,40 +1,56 @@
 # dsh-task-modes
 
-DeepSeek Harness Web 的任务模式插件：正常模式、第一性原理和只读对抗式审查。
+[English README](README.md)
+
+一个可独立安装的 DeepSeek Harness Web bundle，提供三种任务模式：正常执行、第一性原理提示词和独立 fork 的对抗式审查。它通过 DSH 插件层工作，不修改 DSH core。
+
+![dsh-task-modes](assets/social-preview.png)
 
 ## 安装
 
-通过 GitHub tag 安装到 Web profile：
+将固定 commit 的 GitHub bundle 安装到 Web profile：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.7
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
 ```
 
-npm 发布后可使用：
-
-```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes
-```
-
-安装后重启 Web profile，选择器会出现在输入区工具旁。
+安装后重启 Web profile，模式选择器会出现在输入区工具旁。固定完整 commit 可以让安装结果可复现；Git 安装包会执行安装期代码，请只安装可信 revision。
 
 ## 模式
 
-- **正常模式**：不添加额外提示词。
-- **第一性原理**：向 system prompt 加入目标、事实与假设、约束、推导和验证要求。
-- **对抗式审查**：文本答复完成后启动 fork 子 Agent，审查当前任务与候选答复，并保存 Markdown 报告。
+| 模式 | 行为 | 适用场景 |
+| --- | --- | --- |
+| 正常模式 | 不添加额外模式指令，直接发送请求。 | 日常工作。 |
+| 第一性原理 | 向 system prompt 注入目标、事实与假设、约束、推导和验证要求。 | 模糊或影响较大的决策。 |
+| 对抗式审查 | 父 Agent 完成文本答复后，启动 fork 子 Agent 检查当前任务和答复，并在该答复下方显示 Markdown 报告。 | 发现遗漏和缺少依据的假设。 |
 
-审查器仅可使用 `read`、`glob`、`grep`、`read_image` 和平台 shell（macOS/Linux 为 `bash`，Windows 为 `pwsh`）。提示词禁止修改文件和启动后台进程。审查失败只记录“不可用”报告，不会阻断原答复。
+审查器可以使用 `read`、`glob`、`grep`、`read_image` 和平台 shell（macOS/Linux 为 `bash`，Windows 为 `pwsh`）。提示词要求只读检查且不启动后台进程。审查失败会记录为不可用，不会阻断父 Agent 的答复。
 
-## 持久化
+![对抗式审查面板](assets/task-modes-review.png)
 
-插件把数据存入自己的 `graysilver_task_modes` storage domain，不写入自定义 DSH session event。已发布 DSH 会拒绝未知的必需事件，因此这种方式可在不修改 DSH core 的前提下，让模式选择和审查报告跨服务重启、会话重新加载后继续存在。
+### 成本与限制
 
-`/task-mode` 查看当前模式，`/task-mode <normal|first-principles|adversarial-review>` 切换，`/task-mode review <turn>` 查看某一回合的报告，`/task-mode reviews` 查看全部已保存报告。Web 端会在对应 AI 回复下方以折叠 Markdown 显示审查结果；展开后内容区高度固定并可滚动。
+- 每个完成的父答复都会额外产生一次模型调用和相应延迟。
+- 报告只提供建议，不会自动重写或重试父答复。
+- 子 Agent 使用 profile 中注册的工具；提示词限制不是操作系统 sandbox。
+- 插件与 Harness 进程共享权限，请按可信代码安装固定 revision。
+
+## 持久化与命令
+
+bundle 使用独立的 `graysilver_task_modes` storage domain 保存记录，不添加自定义 DSH session event 类型。因此在不修改已发布 DSH persistence 的前提下，模式选择和审查报告可跨服务重启、会话重新加载继续存在。
+
+可在 Web 输入区使用：
+
+- `/task-mode` 查看当前模式。
+- `/task-mode <normal|first-principles|adversarial-review>` 切换模式。
+- `/task-mode review <turn>` 查看某一回合报告。
+- `/task-mode reviews` 查看全部已保存报告。
+
+Web 端会在对应 AI 回复下方以折叠 Markdown 显示报告，展开后内容区高度固定并可滚动。
 
 ## 配置
 
-bundle 会按平台选择 shell。只有目标 profile 已注册所选工具时才覆盖：
+bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时才覆盖：
 
 ```yaml
 - id: dsh-task-modes
@@ -42,6 +58,16 @@ bundle 会按平台选择 shell。只有目标 profile 已注册所选工具时�
     shellTool: bash
 ```
 
-## 安全
+对抗式审查要求所选 profile 提供 fork/subagent 能力。
 
-插件代码与 Harness 进程拥有相同权限。请只安装可信且固定版本的代码。对抗式审查限制了子 Agent 工具，但它不是 sandbox。
+## 兼容性
+
+需要提供 Web 插件加载器、客户端 UI slots、storage domain 和 fork 子 Agent 的 DeepSeek Harness 版本。本仓库当前只分发 GitHub bundle；npm 发布有意延后。
+
+## 反馈
+
+Bug 和功能建议请提交到 [GitHub Issues](https://github.com/GraySilver/dsh-task-modes/issues)。欢迎在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 分享集成和使用反馈。
+
+## 许可证
+
+MIT

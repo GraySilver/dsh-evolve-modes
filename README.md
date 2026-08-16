@@ -1,40 +1,56 @@
 # dsh-task-modes
 
-Task execution modes for DeepSeek Harness Web: normal execution, first-principles prompting, and read-only adversarial review.
+[中文文档](README.zh.md)
+
+An independent, installable DeepSeek Harness Web bundle that adds three task modes: normal execution, first-principles prompting, and an independent forked adversarial review. It works through the DSH plugin layer and does not modify DSH core.
+
+![dsh-task-modes](assets/social-preview.png)
 
 ## Install
 
-Install the tagged GitHub bundle into a Web profile:
+Install a pinned Git revision into a Web profile:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.7
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
 ```
 
-After the npm release is available:
-
-```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes
-```
-
-Restart the Web profile after installation. The selector appears beside the composer tools.
+Restart the Web profile after installation. The mode selector appears beside the composer tools. Pinning a full commit makes the installed code reproducible; Git-hosted plugins execute install-time code, so install only revisions you trust.
 
 ## Modes
 
-- **Normal mode** sends work without additional guidance.
-- **First principles** adds a system-prompt section requiring objectives, facts versus assumptions, constraints, derivation, and verification.
-- **Adversarial review** starts a forked child after a text answer is complete. It audits the current request and answer, then saves a Markdown report for the session.
+| Mode | Behavior | Best for |
+| --- | --- | --- |
+| Normal mode | Sends the request without extra mode instructions. | Everyday work. |
+| First Principles | Injects a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. | Ambiguous or high-leverage decisions. |
+| Adversarial Review | After the parent text answer completes, starts a forked child agent to inspect the current task and answer, then renders a Markdown report below that reply. | Catching omissions and unsupported assumptions. |
 
-The reviewer may use `read`, `glob`, `grep`, `read_image`, and the configured platform shell (`bash` on macOS/Linux, `pwsh` on Windows). Its prompt prohibits modifications and background processes. A reviewer failure produces an unavailable report and never blocks the parent answer.
+The reviewer can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell (`bash` on macOS/Linux or `pwsh` on Windows). Its prompt requests non-mutating inspection and no background processes. A reviewer failure is recorded as unavailable and never blocks the parent answer.
 
-## Persistence
+![Adversarial review panel](assets/task-modes-review.png)
 
-The plugin stores its own records in the `graysilver_task_modes` storage domain. It intentionally does not append custom DSH session events: released DSH persistence rejects unknown required event types. Mode selection and review reports therefore survive service restarts and session reloads without requiring a patched DSH core.
+### Cost and limits
 
-Use `/task-mode` to inspect the current mode, `/task-mode <normal|first-principles|adversarial-review>` to switch, `/task-mode review <turn>` to inspect one report, and `/task-mode reviews` to display all saved reports. The Web client renders each report as collapsed Markdown beneath its corresponding AI reply; expanding it opens a fixed-height, scrollable panel.
+- Adversarial Review adds one model call and corresponding latency per completed parent answer.
+- The report is advisory. It does not automatically rewrite or retry the parent answer.
+- The child uses the tools registered in the profile; tool restrictions in the prompt are not an operating-system sandbox.
+- The plugin shares the Harness process privileges. Treat it as trusted code and install pinned revisions.
+
+## Persistence and commands
+
+The bundle stores its records in the `graysilver_task_modes` storage domain. It does not add custom DSH session event types, so it remains compatible with released DSH persistence while mode selections and review reports survive service restarts and session reloads.
+
+Use these commands in the Web composer:
+
+- `/task-mode` shows the current mode.
+- `/task-mode <normal|first-principles|adversarial-review>` switches modes.
+- `/task-mode review <turn>` opens one review report.
+- `/task-mode reviews` lists saved reports.
+
+The Web client renders each report as collapsed Markdown beneath its corresponding AI reply. Expanding it opens a fixed-height, scrollable panel.
 
 ## Configuration
 
-The bundle picks the normal platform shell automatically. Override it in the profile patch only when the selected tool is registered in that profile:
+The bundle selects the normal platform shell automatically. Override it only when the target profile registers that tool:
 
 ```yaml
 - id: dsh-task-modes
@@ -42,6 +58,16 @@ The bundle picks the normal platform shell automatically. Override it in the pro
     shellTool: bash
 ```
 
-## Security
+Adversarial review requires the fork/subagent capability in the selected profile.
 
-A plugin runs inside the Harness process and has the same process privileges as the Harness. Install only pinned revisions and code you trust. Adversarial review limits the child tool set, but it is not a sandbox.
+## Compatibility
+
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, and forked subagents. The repository currently distributes GitHub bundles only; npm publication is intentionally deferred.
+
+## Feedback
+
+Please use [GitHub Issues](https://github.com/GraySilver/dsh-task-modes/issues) for bugs and feature requests. Showcase and integration feedback is welcome in the [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+
+## License
+
+MIT
