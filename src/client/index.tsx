@@ -12,6 +12,9 @@ interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<v
 type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
 const modes: readonly { id: Mode; key: keyof typeof en }[] = [{ id: 'normal', key: 'normal' }, { id: 'first-principles', key: 'firstPrinciples' }, { id: 'adversarial-review', key: 'review' }]
 
+/** Required browser services for the task-mode controls. */
+export const inject = ['slots', 'locale', 'remote']
+
 const triggerStyle: CSSProperties = { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', display: 'inline-flex', fontSize: 13, gap: 4, height: 28, padding: '0 6px 0 8px' }
 const reviewStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', borderRadius: 6, boxSizing: 'border-box', color: 'var(--dsw-alias-label-secondary)', fontSize: 13, lineHeight: '20px', padding: '8px 12px', width: '100%' }
 const reviewSummaryStyle: CSSProperties = { alignItems: 'center', cursor: 'pointer', display: 'flex', fontWeight: 500, gap: 6 }
