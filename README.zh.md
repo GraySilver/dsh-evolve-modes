@@ -7,7 +7,7 @@ DeepSeek Harness Web 的任务模式插件：普通、第一性原理和只读�
 通过 GitHub tag 安装到 Web profile：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.2
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.3
 ```
 
 npm 发布后可使用：

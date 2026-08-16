@@ -27,7 +27,7 @@ test('registers the browser entry through the DSH module loader', async () => {
     assert.equal(handoff?.id, '@graysilver/dsh-task-modes')
     assert.equal(typeof handoff?.factory, 'function')
     const exports = handoff.factory(() => ({}))
-    assert.deepEqual(exports.inject, ['slots', 'locale', 'remote'])
+    assert.deepEqual(exports.inject, ['slots', 'locale', 'remote', 'remote.commands'])
     assert.equal(typeof exports.apply, 'function')
   } finally {
     delete globalThis.window
