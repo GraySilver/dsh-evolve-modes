@@ -53,11 +53,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const input = rawInput.trim()
         const current = recordFor(records, String(agent.session.id))
         if (input === '') return { kind: 'success', text: `task mode: ${current.mode}` }
+        const reviewTurn = /^review\s+(\d+)$/u.exec(input)
+        if (reviewTurn !== null) {
+          const turn = Number(reviewTurn[1])
+          if (!Number.isSafeInteger(turn)) return { kind: 'error', text: 'task-mode review expects a non-negative integer turn' }
+          return { kind: 'success', text: current.reviews.find(review => review.turn === turn)?.text ?? '' }
+        }
         if (input === 'reviews') {
           return { kind: 'success', text: current.reviews.map(review => `## Turn ${review.turn} - ${review.status}\n\n${review.text}`).join('\n\n') || 'No adversarial reviews yet.' }
         }
         if (input !== 'normal' && input !== 'first-principles' && input !== 'adversarial-review') {
-          return { kind: 'error', text: 'task-mode expects normal, first-principles, adversarial-review, or reviews' }
+          return { kind: 'error', text: 'task-mode expects normal, first-principles, adversarial-review, review <turn>, or reviews' }
         }
         await setMode(records, String(agent.session.id), input)
         return { kind: 'success', text: `task mode: ${input}` }

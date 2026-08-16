@@ -33,3 +33,38 @@ test('registers the browser entry through the DSH module loader', async () => {
     delete globalThis.window
   }
 })
+
+test('mounts reviews beneath their matching completed turn', async () => {
+  let handoff
+  globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
+  try {
+    await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?turn-tail=${Date.now()}`)
+    const plugin = handoff.factory(() => ({}))
+    const registrations = []
+    const calls = []
+    const ctx = {
+      effect: (effect) => effect(),
+      locale: { register: () => () => {} },
+      remote: { commands: { execute: async (sessionId, line) => {
+        calls.push([sessionId, line])
+        return { ok: true, value: { result: { kind: 'success', text: '## Verdict\n\nPass' } } }
+      } } },
+      slots: {
+        inject: (_name, effect) => effect(),
+        register: (options) => { registrations.push(options); return () => {} },
+      },
+    }
+    plugin.apply(ctx)
+
+    assert.deepEqual(registrations.map(item => item.name), [
+      'conversation.input.left',
+      'conversation.chat.turnTail',
+    ])
+    const tail = registrations[1]
+    const face = tail.inject('session-1')
+    assert.equal(await face.review(7), '## Verdict\n\nPass')
+    assert.deepEqual(calls, [['session-1', '/task-mode review 7']])
+  } finally {
+    delete globalThis.window
+  }
+})

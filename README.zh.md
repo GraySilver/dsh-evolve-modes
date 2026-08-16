@@ -7,7 +7,7 @@ DeepSeek Harness Web 的任务模式插件：普通、第一性原理和只读�
 通过 GitHub tag 安装到 Web profile：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.3
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.4
 ```
 
 npm 发布后可使用：
@@ -30,7 +30,7 @@ dsh plugin --profile web add @graysilver/dsh-task-modes
 
 插件把数据存入自己的 `graysilver_task_modes` storage domain，不写入自定义 DSH session event。已发布 DSH 会拒绝未知的必需事件，因此这种方式可在不修改 DSH core 的前提下，让模式选择和审查报告跨服务重启、会话重新加载后继续存在。
 
-`/task-mode` 查看当前模式，`/task-mode <normal|first-principles|adversarial-review>` 切换，`/task-mode reviews` 查看已保存报告。Web 审查面板以 Markdown 显示相同内容。
+`/task-mode` 查看当前模式，`/task-mode <normal|first-principles|adversarial-review>` 切换，`/task-mode review <turn>` 查看某一回合的报告，`/task-mode reviews` 查看全部已保存报告。Web 端会在对应 AI 回复下方以折叠 Markdown 显示审查结果；展开后内容区高度固定并可滚动。
 
 ## 配置
 

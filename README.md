@@ -7,7 +7,7 @@ Task execution modes for DeepSeek Harness Web: normal execution, first-principle
 Install the tagged GitHub bundle into a Web profile:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.3
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#v0.1.4
 ```
 
 After the npm release is available:
@@ -30,7 +30,7 @@ The reviewer may use `read`, `glob`, `grep`, `read_image`, and the configured pl
 
 The plugin stores its own records in the `graysilver_task_modes` storage domain. It intentionally does not append custom DSH session events: released DSH persistence rejects unknown required event types. Mode selection and review reports therefore survive service restarts and session reloads without requiring a patched DSH core.
 
-Use `/task-mode` to inspect the current mode, `/task-mode <normal|first-principles|adversarial-review>` to switch, and `/task-mode reviews` to display saved reports. The Web review panel renders the same reports as Markdown.
+Use `/task-mode` to inspect the current mode, `/task-mode <normal|first-principles|adversarial-review>` to switch, `/task-mode review <turn>` to inspect one report, and `/task-mode reviews` to display all saved reports. The Web client renders each report as collapsed Markdown beneath its corresponding AI reply; expanding it opens a fixed-height, scrollable panel.
 
 ## Configuration
 

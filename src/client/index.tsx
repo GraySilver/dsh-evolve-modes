@@ -9,7 +9,7 @@ import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-cli
 import type { TaskMode } from '../types.ts'
 
 type Mode = TaskMode
-interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<void>; reviews(): Promise<string> }
+interface ControlFace { getMode(): Promise<Mode>; setMode(mode: Mode): Promise<void>; review(turn: number): Promise<string> }
 type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
 const modes: readonly { id: Mode; key: keyof typeof en }[] = [{ id: 'normal', key: 'normal' }, { id: 'first-principles', key: 'firstPrinciples' }, { id: 'adversarial-review', key: 'review' }]
 
@@ -19,6 +19,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.commands']
 const triggerStyle: CSSProperties = { alignItems: 'center', background: 'transparent', border: 0, borderRadius: 6, color: 'var(--dsw-alias-label-secondary)', cursor: 'pointer', display: 'inline-flex', fontSize: 13, gap: 4, height: 28, padding: '0 6px 0 8px' }
 const reviewStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', borderRadius: 6, boxSizing: 'border-box', color: 'var(--dsw-alias-label-secondary)', fontSize: 13, lineHeight: '20px', padding: '8px 12px', width: '100%' }
 const reviewSummaryStyle: CSSProperties = { alignItems: 'center', cursor: 'pointer', display: 'flex', fontWeight: 500, gap: 6 }
+const reviewBodyStyle: CSSProperties = { height: 240, overflowY: 'auto', paddingTop: 8 }
 
 function TaskModeControl({ getMode, setMode, t }: ControlProps) {
   const [mode, setCurrent] = useState<Mode>('normal'); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | undefined>()
@@ -35,12 +36,12 @@ function TaskModeControl({ getMode, setMode, t }: ControlProps) {
   {error === undefined ? null : <span role="alert" style={{ color: 'var(--dsw-alias-label-danger)', fontSize: 12 }}>{error}</span>}</>
 }
 
-type ReviewProps = PropsRuntime<'conversation.input.dock'> & PropsLocale<'taskModes'> & InjectFace<Pick<ControlFace, 'reviews'>>
-function ReviewDock({ reviews, t }: ReviewProps) {
+type ReviewProps = PropsRuntime<'conversation.chat.turnTail'> & PropsLocale<'taskModes'> & InjectFace<Pick<ControlFace, 'review'>>
+function ReviewTail({ turn, review, t }: ReviewProps) {
   const [text, setText] = useState<string | undefined>(undefined)
-  useEffect(() => { let live = true; void reviews().then(value => { if (live) setText(value) }).catch(() => { if (live) setText('') }); return () => { live = false } }, [reviews])
+  useEffect(() => { let live = true; void review(turn.turn).then(value => { if (live) setText(value) }).catch(() => { if (live) setText('') }); return () => { live = false } }, [review, turn.turn])
   if (text === undefined || text === '') return null
-  return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconThinkOutline14 /> {t('review')}</summary><MarkdownText text={text} /></details>
+  return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconThinkOutline14 /> {t('review')}</summary><div style={reviewBodyStyle}><MarkdownText text={text} /></div></details>
 }
 
 const en = { normal: 'Normal', firstPrinciples: 'First principles', review: 'Adversarial review' }
@@ -61,8 +62,8 @@ export function apply(ctx: ClientContext): void {
   const faceFor = (sessionId: string): ControlFace => ({
     getMode: async () => { const text = await execute(sessionId, '/task-mode'); const mode = text.slice('task mode: '.length); return mode === 'first-principles' || mode === 'adversarial-review' ? mode : 'normal' },
     setMode: async mode => { await execute(sessionId, `/task-mode ${mode}`) },
-    reviews: async () => await execute(sessionId, '/task-mode reviews'),
+    review: async turn => await execute(sessionId, `/task-mode review ${turn}`),
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
-  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'task-mode-reviews', order: 25, locale: 'taskModes', inject: sessionId => ({ reviews: faceFor(sessionId).reviews }) }, ReviewDock))
+  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: 'task-mode-reviews', order: 25, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
 }
