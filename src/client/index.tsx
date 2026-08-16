@@ -44,6 +44,8 @@ function ReviewTail({ turn, review, t }: ReviewProps) {
   return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconThinkOutline14 /> {t('review')}</summary><div style={reviewBodyStyle}><MarkdownText text={text} /></div></details>
 }
 
+function TaskModeReviewCommandView() { return null }
+
 const en = { normal: 'Normal', firstPrinciples: 'First principles', review: 'Adversarial review' }
 const zh = { normal: '普通', firstPrinciples: '第一性原理', review: '对抗式审查' }
 type TaskModesKey = keyof typeof en
@@ -62,8 +64,9 @@ export function apply(ctx: ClientContext): void {
   const faceFor = (sessionId: string): ControlFace => ({
     getMode: async () => { const text = await execute(sessionId, '/task-mode'); const mode = text.slice('task mode: '.length); return mode === 'first-principles' || mode === 'adversarial-review' ? mode : 'normal' },
     setMode: async mode => { await execute(sessionId, `/task-mode ${mode}`) },
-    review: async turn => await execute(sessionId, `/task-mode review ${turn}`),
+    review: async turn => await execute(sessionId, `/task-mode-review ${turn}`),
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
   ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
+  ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({ name: 'conversation.chat.commandview', key: 'task-mode-review' }, TaskModeReviewCommandView))
 }

@@ -59,12 +59,13 @@ test('mounts reviews beneath their matching completed turn', async () => {
     assert.deepEqual(registrations.map(item => item.name), [
       'conversation.input.left',
       'conversation.chat.turnTail',
+      'conversation.chat.commandview',
     ])
     const tail = registrations[1]
     assert.equal(tail.select({}), true)
     const face = tail.inject('session-1')
     assert.equal(await face.review(7), '## Verdict\n\nPass')
-    assert.deepEqual(calls, [['session-1', '/task-mode review 7']])
+    assert.deepEqual(calls, [['session-1', '/task-mode-review 7']])
   } finally {
     delete globalThis.window
   }

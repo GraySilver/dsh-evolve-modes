@@ -69,6 +69,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         return { kind: 'success', text: `task mode: ${input}` }
       },
     }), 'dsh-task-modes: task-mode command')
+    scope.effect(() => scope.commands.register({
+      name: 'task-mode-review',
+      description: 'Internal Web reader for one adversarial review.',
+      recordInput: false,
+      handler: async ({ agent, rawInput }) => {
+        const turn = Number(rawInput.trim())
+        if (!Number.isSafeInteger(turn) || turn < 0) return { kind: 'error', text: 'task-mode-review expects a non-negative integer turn' }
+        return { kind: 'success', text: recordFor(records, String(agent.session.id)).reviews.find(review => review.turn === turn)?.text ?? '' }
+      },
+    }), 'dsh-task-modes: task-mode-review command')
     scope.on('agent/turn-stopping', async ({ agent, turn, signal }) => { if (modeOf(agent) !== 'adversarial-review') return; const review = await reviewTurn(scope, agent, turn, signal, config.shellTool); if (review !== undefined) await addReview(records, String(agent.session.id), review) })
   })
 }
