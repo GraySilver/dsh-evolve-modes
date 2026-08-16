@@ -25,7 +25,7 @@ dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
 需要审计源码或进行开发时，可以改用固定 Git revision：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#ca239e55f382816d0d1444f4eb9742e22945018e
 ```
 
 Git 安装包会执行安装期代码，请只安装可信 revision。

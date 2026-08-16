@@ -25,7 +25,7 @@ Restart the Web profile after installation. The mode selector appears beside the
 For source auditing or development, install the pinned Git revision instead:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#4ec9f5f63679784ef6ce248aae42e373d7a8d049
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#ca239e55f382816d0d1444f4eb9742e22945018e
 ```
 
 Git-hosted plugins execute install-time code, so install only revisions you trust.
