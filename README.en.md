@@ -2,7 +2,7 @@
 
 > Make every agent turn intentional.
 
-**dsh-task-modes** is an independent Web plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns one compact composer control into a deliberate workflow: choose how the agent should work, how it should reason, and how rigorously its result should be checked.
+**dsh-task-modes** is an independent Web plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns one compact composer control into a deliberate workflow: choose how the agent should work, how it should reason, how rigorously its result should be checked, and whether completed work may produce reviewable long-term instructions.
 
 No fork of DeepSeek Harness. No duplicate agent loop. Install the plugin, choose a combination, and keep that decision visible in every session.
 
@@ -10,21 +10,22 @@ No fork of DeepSeek Harness. No duplicate agent loop. Install the plugin, choose
 
 ![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
-## One Control, Three Decisions
+## One Control, Four Decisions
 
 The composer shows one concise summary:
 
 ```text
-Execute · Standard · Off
+Execute · Standard · Off · Evolution Propose
 ```
 
-Open it to compose three independent dimensions:
+Open it to compose four independent dimensions:
 
 | Decision | Options | What it changes |
 | --- | --- | --- |
 | **Working state** | Execute · Plan | Choose immediate execution or the official DSH planning workflow. |
 | **Reasoning strategy** | Standard · First principles | Work normally, or require explicit objectives, facts, assumptions, constraints, derivation, and verification. |
 | **Quality gate** | Off · Adversarial review · Acceptance review | Skip review, challenge the answer independently, or check it against the task and an approved plan. |
+| **Self-evolution** | Off · Propose | Skip long-term analysis, or by default create human-reviewed rule proposals after every 3 completed parent-agent replies. |
 
 This is not a collection of mutually exclusive modes. It is a small operating model for each task.
 
@@ -36,22 +37,23 @@ This is not a collection of mutually exclusive modes. It is a small operating mo
 | Make a high-impact decision | `Plan · First principles · Off` | Research first, expose assumptions, derive the approach, then use DSH's approval flow. |
 | Build with confidence | `Execute · Standard · Acceptance review` | Implement normally, then independently check the result against the requested outcome. |
 | Challenge a risky answer | `Execute · First principles · Adversarial review` | Make reasoning explicit and ask a separate reviewer to find omissions, counterexamples, and unsupported claims. |
+| Accumulate stable preferences | `Execute · Standard · Off · Evolution Propose` | Analyze replies in default batches of 3 and propose durable identity, preference, or work instructions without activating them automatically. |
 
 ## Install in One Command
 
 Install the published npm release into the DeepSeek Harness Web profile:
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
 ```
 
 Or, when `dsh` is already installed:
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
 ```
 
-Restart the Web profile. The task-mode control appears beside the composer tools.
+Restart the Web profile. The self-evolution mode control appears beside the composer tools.
 
 For source auditing or development, install a pinned Git revision instead:
 
@@ -68,6 +70,8 @@ Git-hosted plugins execute install-time code, so install only revisions you trus
 - **Plan mode without a competing implementation.** Plan delegates to the official DSH Plan service, its persisted `plan/mode` event, and its `exit_plan_mode` approval workflow.
 - **Independent review where it matters.** Adversarial and Acceptance review run as a forked agent after each completed parent response and render a Markdown report directly below that response.
 - **No hidden rewriting.** Reviews identify evidence, gaps, and concrete follow-up actions, but never silently alter, retry, or fix the parent answer.
+- **Propose before activation.** The learning agent may only create evidence-backed proposals. A rule reaches the system prompt only after human approval.
+- **A plugin-owned Settings page.** The top-level Self-evolution mode page manages global learning thresholds, pending proposals, rules, backups, and learning runs.
 - **Plugin-first distribution.** Install through npm, audit a pinned Git revision when needed, and leave DeepSeek Harness core untouched.
 
 ![Task-mode review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
@@ -92,6 +96,18 @@ Concrete follow-up
 
 Use it when you want a clear handoff from implementation to verification.
 
+## Reviewable Self-Evolution
+
+Self-evolution is enabled as `Propose` by default. New sessions and older sessions without an explicit self-evolution choice enter learning after every default batch of 3 completed parent-agent replies; sessions explicitly set to Off stay out of the learning pool. The Self-evolution mode Settings page controls both the batch size and the pending-proposal limit globally.
+
+Each learning request uses one dedicated persona/system prompt and receives the current batch as exactly one structured JSON user message. It does not inherit parent conversation history or parent Agent work context, does not create a learning subagent, does not carry tools, and does not load `AGENTS.md` or `CLAUDE.md` from the source workspace. The isolated request only looks for identity facts, preferences, and work requirements that remain useful beyond the current task.
+
+Automatic learning never changes future behavior directly. Every add, update, or delete first becomes a pending proposal and requires explicit user approval. Proposal evidence must be copied exactly from user messages. Assistant inference, temporary task details, one-off implementation results, silence, and lack of repetition are not sufficient evidence for a rule or deletion.
+
+All approved rules are global. The plugin injects them into a marked `<dsh-task-modes-learned-instructions>` system-prompt section and projects the exact section into Trajectory. The Settings page also supports manual edits, apply or dismiss actions, failed-run inspection, and restoration from backups created before each mutation.
+
+All self-evolution data stays in plugin-owned durable storage. The plugin never writes `AGENTS.md`, `CLAUDE.md`, or project files.
+
 ## How the Workflow Holds Up
 
 ### Plan mode and tools
@@ -114,9 +130,9 @@ Quality review adds one model call and corresponding latency per completed paren
 
 ## Persistence and Commands
 
-The bundle stores its records in the `graysilver_task_modes` storage domain. Working state is not duplicated there: official Plan mode folds it from the session log. Reasoning choices, quality choices, and reports survive service restarts and session reloads without adding custom DSH session event types.
+The bundle stores session controls and reviews in `graysilver_task_modes`, and stores cross-session proposals, approved rules, backups, and learning runs in `graysilver_task_modes_evolution`. Working state is not duplicated: official Plan mode folds it from the session log. Plugin state survives service restarts and session reloads without adding custom DSH session event types.
 
-Version `0.2.0` keeps the domain descriptor at version `1` and automatically rewrites legacy records on startup:
+Version `0.3.0` fills self-evolution defaults into `0.2.0` records and continues to migrate earlier single-mode records:
 
 | Legacy mode | Reasoning | Quality gate |
 | --- | --- | --- |
@@ -135,11 +151,15 @@ Use these commands in the Web composer or through the command API:
 /task-mode quality off
 /task-mode quality general-review
 /task-mode quality acceptance-review
+/task-mode evolution off
+/task-mode evolution propose
+/task-mode evolution batch-size <1..100>
+/task-mode evolution max-pending-proposals <1..1000>
 /task-mode review <turn>
 /task-mode reviews
 ```
 
-The old single-mode aliases remain accepted during the `0.2.x` release line: `normal`, `first-principles`, and `adversarial-review`. They reset the working state to Execute and map to the table above.
+The old single-mode aliases remain migratable: `normal`, `first-principles`, and `adversarial-review`. They reset the working state to Execute, map to the table above, and preserve the current self-evolution setting.
 
 ## Configuration
 
@@ -151,11 +171,11 @@ The bundle selects the normal platform shell automatically. Override it only whe
     shellTool: bash
 ```
 
-Quality review requires DSH's fork/subagent capability. Plan mode requires DSH's official `planMode` service and tool registry.
+Quality review requires DSH's fork/subagent capability; self-evolution analysis requires DSH's direct `llm` service. Plan mode requires DSH's official `planMode` service and tool registry. Self-evolution adds one isolated model call per completed batch; failed runs appear in Settings and keep the unfinished batch available for a later retry.
 
 ## Compatibility
 
-Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, forked subagents, the official Plan mode service, and the DSH tools pipeline. npm is the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, forked subagents for quality review, the official Plan mode service, and the DSH tools pipeline. npm is the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
 
 ## Feedback
 

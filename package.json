@@ -1,7 +1,7 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.2.0",
-  "description": "Composable working, reasoning, and quality controls for DeepSeek Harness Web.",
+  "version": "0.3.0",
+  "description": "Composable working, reasoning, quality, and human-reviewed self-evolution controls for DeepSeek Harness Web.",
   "license": "MIT",
   "homepage": "https://github.com/GraySilver/dsh-task-modes#readme",
   "repository": {
@@ -29,12 +29,14 @@
   "exports": {
     ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    "./typert": { "types": "./lib/types/typert.d.ts", "default": "./lib/typert.host.js" },
+    "./remote": { "types": "./lib/types/remote.d.ts", "default": "./lib/typert.remote-client.js" },
     "./package.json": "./package.json"
   },
   "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.en.md", "README.zh.md", "LICENSE"],
   "scripts": {
-    "build": "tsdown && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "build": "tsdown && node scripts/normalize-artifacts.mjs && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
+    "test": "vitest run tests/*.test.ts && node --test tests/*.test.mjs",
     "pack:check": "corepack pnpm pack --pack-destination dist",
     "prepublishOnly": "corepack pnpm run build && corepack pnpm test"
   },
@@ -53,6 +55,7 @@
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-slots"
       ]
     }
@@ -63,11 +66,13 @@
     "@deepseek-ai/dsh-agent": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-agent-presets": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-commands": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.5",
     "@deepseek-ai/dsh-plan-mode": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-session": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-storage-domain": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-subagent": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-system-prompt": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.5",
     "@deepseek-ai/dsh-tools": "^0.0.1-rc.1",
     "react": "^18.2.0"
   },
@@ -85,13 +90,16 @@
     "@deepseek-ai/dsh-client-runtime": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-conversation": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.5",
     "@deepseek-ai/dsh-client-ui-slots": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-commands": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.5",
     "@deepseek-ai/dsh-plan-mode": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-session": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-storage-domain": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-subagent": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-system-prompt": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.5",
     "@deepseek-ai/dsh-tools": "^0.0.1-rc.1",
     "@types/react": "^18.3.1",
     "react": "^18.2.0",

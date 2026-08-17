@@ -5,6 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    "types": ["node", "react"],
     "declaration": true,
     "declarationDir": "lib/types",
     "outDir": "lib/types",

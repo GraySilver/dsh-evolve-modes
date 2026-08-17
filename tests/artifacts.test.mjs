@@ -8,13 +8,14 @@ import { pathToFileURL } from 'node:url'
 const execFileAsync = promisify(execFile)
 
 test('ships both DSH plugin entry points', async () => {
-  await access(new URL('../lib/index.js', import.meta.url))
-  await access(new URL('../lib/client.js', import.meta.url))
+  for (const file of ['index.js', 'client.js', 'typert.host.js', 'typert.remote-client.js']) {
+    await access(new URL(`../lib/${file}`, import.meta.url))
+  }
   assert.ok(true)
 })
 
 test('ships syntactically valid JavaScript entry points', async () => {
-  for (const file of ['index.js', 'client.js']) {
+  for (const file of ['index.js', 'client.js', 'typert.host.js', 'typert.remote-client.js']) {
     await execFileAsync(process.execPath, ['--check', new URL(`../lib/${file}`, import.meta.url).pathname])
   }
 })
@@ -45,8 +46,9 @@ test('mounts reviews beneath their matching completed turn', async () => {
     const calls = []
     const ctx = {
       effect: (effect) => effect(),
+      inject: (_dependencies, effect) => effect(ctx),
       locale: { register: () => () => {} },
-      remote: { commands: { execute: async (sessionId, line) => {
+      remote: { $mount: () => () => {}, commands: { execute: async (sessionId, line) => {
         calls.push([sessionId, line])
         return { ok: true, value: { result: { kind: 'success', text: JSON.stringify({
           turn: 7,
@@ -64,12 +66,13 @@ test('mounts reviews beneath their matching completed turn', async () => {
     }
     plugin.apply(ctx)
 
-    assert.equal(definitions.length, 1)
+    assert.equal(definitions.length, 2)
     assert.deepEqual(registrations.map(item => item.name), [
       'conversation.input.left',
       'conversation.input.plan',
       'conversation.chat.turnTail',
       'conversation.chat.commandview',
+      'settings.section',
     ])
     const tail = registrations[2]
     assert.equal(tail.select({}), true)
@@ -87,7 +90,7 @@ test('mounts reviews beneath their matching completed turn', async () => {
   }
 })
 
-test('exposes independent working, reasoning, and quality command controls', async () => {
+test('exposes independent working, reasoning, quality, and evolution command controls', async () => {
   let handoff
   globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
   try {
@@ -95,11 +98,12 @@ test('exposes independent working, reasoning, and quality command controls', asy
     const plugin = handoff.factory(() => ({}))
     const calls = []
     const registrations = []
-    const stateText = 'working: execute\nreasoning: first-principles\nquality: acceptance-review'
+    const stateText = 'working: execute\nreasoning: first-principles\nquality: acceptance-review\nevolution: propose\nlearning-batch-size: 3\npending-evolution-turns: 2'
     const ctx = {
       effect: effect => effect(),
+      inject: (_dependencies, effect) => effect(ctx),
       locale: { register: () => () => {} },
-      remote: { commands: { execute: async (sessionId, line) => {
+      remote: { $mount: () => () => {}, commands: { execute: async (sessionId, line) => {
         calls.push([sessionId, line])
         return { ok: true, value: { result: { kind: 'success', text: stateText } } }
       } } },
@@ -112,25 +116,46 @@ test('exposes independent working, reasoning, and quality command controls', asy
     plugin.apply(ctx)
 
     const face = registrations[0].inject('session-axes')
-    assert.deepEqual(await face.getState(), { reasoning: 'first-principles', quality: 'acceptance-review' })
-    assert.deepEqual(await face.setWorking('plan'), { reasoning: 'first-principles', quality: 'acceptance-review' })
-    assert.deepEqual(await face.setReasoning('standard'), { reasoning: 'first-principles', quality: 'acceptance-review' })
-    assert.deepEqual(await face.setQuality('general-review'), { reasoning: 'first-principles', quality: 'acceptance-review' })
+    const expected = {
+      working: 'execute',
+      reasoning: 'first-principles',
+      quality: 'acceptance-review',
+      evolution: 'propose',
+      learningBatchSize: 3,
+      pendingEvolutionTurns: 2,
+    }
+    assert.deepEqual(await face.getState(), expected)
+    assert.deepEqual(await face.setWorking('plan'), expected)
+    assert.deepEqual(await face.setReasoning('standard'), expected)
+    assert.deepEqual(await face.setQuality('general-review'), expected)
+    assert.deepEqual(await face.setEvolution('off'), expected)
+    assert.deepEqual(await face.setBatchSize(5), expected)
     assert.deepEqual(calls, [
       ['session-axes', '/task-mode'],
       ['session-axes', '/task-mode working plan'],
       ['session-axes', '/task-mode reasoning standard'],
       ['session-axes', '/task-mode quality general-review'],
+      ['session-axes', '/task-mode evolution off'],
+      ['session-axes', '/task-mode evolution batch-size 5'],
     ])
 
     const artifact = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
-    for (const label of ['Execute', 'Plan', 'Standard', 'First principles', 'Off', 'Adversarial review', 'Acceptance review']) {
+    for (const label of ['Execute', 'Plan', 'Standard', 'First principles', 'Off', 'Adversarial review', 'Acceptance review', 'Self-evolution', 'Propose']) {
       assert.match(artifact, new RegExp(label))
     }
+    for (const label of ['正常', '工作模式', '审查', '自进化']) {
+      assert.match(artifact, new RegExp(label))
+    }
+    assert.match(artifact, /execute:`正常`/u)
+    assert.match(artifact, /workingLabel:`工作模式`/u)
+    assert.match(artifact, /qualityLabel:`审查`/u)
+    assert.match(artifact, /qualityOff:`关`/u)
+    assert.match(artifact, /evolutionOff:`关`/u)
+    assert.match(artifact, /evolutionPropose:`开`/u)
     assert.match(artifact, /selectedIds:/u)
     assert.doesNotMatch(artifact, /qualityOpen/u)
     assert.match(artifact, /conversation\.input\.plan/u)
-    assert.match(artifact, /priority: -1/u)
+    assert.match(artifact, /priority:\s*-1/u)
   } finally {
     delete globalThis.window
   }
@@ -151,7 +176,16 @@ test('ships migration, Plan enforcement, and both quality profiles', async () =>
   assert.doesNotMatch(artifact, /\["commands", "systemPrompt", "subagents", "storageDomain", "planMode", "tools"\]/u)
   assert.match(artifact, /profile === "general-review"/u)
   assert.match(artifact, /Met, Gap, Unverified, Evidence, and Concrete follow-up/u)
-  assert.match(artifact, /if \(profile === "off"\) return/u)
+  assert.match(artifact, /name:\s*"graysilver_task_modes_evolution",\s*version:\s*1/u)
+  assert.match(artifact, /name:\s*"task-mode:evolution"/u)
+  assert.match(artifact, /evolution\\s\+batch-size/u)
+  assert.match(artifact, /dsh-task-modes:evolution-learning/u)
+  assert.match(artifact, /validationError/u)
+  assert.match(artifact, /mode:\s*"repair"/u)
+  assert.match(artifact, /category must be exactly identity, preference, or work_rule/u)
+  assert.match(artifact, /scope\.llm\.stream/u)
+  assert.match(artifact, /const messages = \[createUserMessage/u)
+  assert.doesNotMatch(artifact, /LEARNING_TOOLS/u)
   assert.doesNotMatch(patch, /dsh-plan-mode/u)
 })
 
@@ -161,15 +195,18 @@ test('projects a verified first-principles request header into Trajectory', asyn
   try {
     await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?trajectory=${Date.now()}`)
     const plugin = handoff.factory(() => ({}))
-    let definition
+    const definitions = []
     const ctx = {
       effect: effect => effect(),
+      inject: (_dependencies, effect) => effect(ctx),
       locale: { register: () => () => {} },
-      remote: { commands: { execute: async () => ({ ok: true }) } },
-      conversationEvents: { register: value => { definition = value; return () => {} } },
+      remote: { $mount: () => () => {}, commands: { execute: async () => ({ ok: true }) } },
+      conversationEvents: { register: value => { definitions.push(value); return () => {} } },
       slots: { inject: () => {}, register: () => () => {} },
     }
     plugin.apply(ctx)
+    const definition = definitions.find(value => value.kind === 'task-mode-first-principles-injection')
+    assert.ok(definition)
 
     const prompt = 'For this task, reason from first principles. State the objective and success criteria, separate verified facts from assumptions, identify hard constraints, derive the solution from those facts, and describe how you will verify the result. Do not treat conventions or guesses as requirements.'
     const event = {
@@ -211,6 +248,50 @@ test('projects a verified first-principles request header into Trajectory', asyn
     assert.equal(node.anchorSeq, 22)
     assert.deepEqual(node.location, location)
     assert.deepEqual(node.data.node, state)
+  } finally {
+    delete globalThis.window
+  }
+})
+
+test('projects only the approved learned-instruction block into Trajectory', async () => {
+  let handoff
+  globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
+  try {
+    await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?learned-trajectory=${Date.now()}`)
+    const plugin = handoff.factory(() => ({}))
+    const definitions = []
+    const ctx = {
+      effect: effect => effect(),
+      inject: (_dependencies, effect) => effect(ctx),
+      locale: { register: () => () => {} },
+      remote: { $mount: () => () => {}, commands: { execute: async () => ({ ok: true }) } },
+      conversationEvents: { register: value => { definitions.push(value); return () => {} } },
+      slots: { inject: () => {}, register: () => () => {} },
+    }
+    plugin.apply(ctx)
+    const definition = definitions.find(value => value.kind === 'task-mode-learned-instructions-injection')
+    assert.ok(definition)
+
+    const learned = '<dsh-task-modes-learned-instructions>\n# Global learned instructions\n\n- Prefer Chinese\n</dsh-task-modes-learned-instructions>'
+    const event = {
+      type: 'request/header',
+      seq: 31,
+      time: 5678,
+      data: {
+        header: { config: { provider: 'test', model: 'test' }, system: `base\n\n${learned}\n\ntail` },
+        reason: 'change',
+      },
+    }
+    const location = { kind: 'step', turn: { turn: 3 }, step: { turn: 3, step: 1 } }
+    assert.deepEqual(definition.match(event), { id: '31', role: 'start' })
+    assert.equal(definition.match({
+      ...event,
+      data: { ...event.data, header: { ...event.data.header, system: 'base' } },
+    }), null)
+    const match = { event, role: 'start', location }
+    const state = definition.start({ matches: [match] }, match, {})
+    assert.deepEqual(state.content, [{ type: 'text', text: learned }])
+    assert.deepEqual(state.source, { kind: 'plugin', plugin: 'dsh-task-modes:evolution' })
   } finally {
     delete globalThis.window
   }

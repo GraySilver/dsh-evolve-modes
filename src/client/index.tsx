@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
+import taskModesRemote from '../remote.ts'
 import type {
   ClientContext,
   ContextMessageNode,
@@ -11,23 +12,47 @@ import type {
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import {
+  Button,
   IconCheckOutline14,
+  IconCheckOutline16,
   IconChecklistOutline14,
   IconChevronDownOutline14,
+  IconCloseOutline16,
+  IconEditOutline16,
+  IconPlusOutline16,
+  IconRefreshOutline14,
   IconThinkOutline14,
+  IconTrashOutline16,
   MarkdownText,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import { FIRST_PRINCIPLES } from '../prompt.ts'
-import type { QualityGate, ReasoningMode, TaskModeReview } from '../types.ts'
+import type {
+  EvolutionCategory,
+  EvolutionConfig,
+  EvolutionConfigRequest,
+  EvolutionDashboard,
+  EvolutionMode,
+  EvolutionProposalRequest,
+  EvolutionRestoreRequest,
+  EvolutionSettingRequest,
+  QualityGate,
+  ReasoningMode,
+  TaskModeReview,
+} from '../types.ts'
 
 interface ModeState {
+  readonly working: 'execute' | 'plan'
   readonly reasoning: ReasoningMode
   readonly quality: QualityGate
+  readonly evolution: EvolutionMode
+  readonly learningBatchSize: number
+  readonly pendingEvolutionTurns: number
 }
 
 interface ControlFace {
@@ -35,6 +60,8 @@ interface ControlFace {
   setWorking(value: 'execute' | 'plan'): Promise<ModeState>
   setReasoning(value: ReasoningMode): Promise<ModeState>
   setQuality(value: QualityGate): Promise<ModeState>
+  setEvolution(value: EvolutionMode): Promise<ModeState>
+  setBatchSize(value: number): Promise<ModeState>
   review(turn: number): Promise<TaskModeReview | undefined>
 }
 
@@ -91,10 +118,14 @@ function qualityLabel(quality: QualityGate, t: ControlProps['t']): string {
   }
 }
 
-function TaskModeControl({ getState, setWorking, setReasoning, setQuality, useProjection, t }: ControlProps) {
+function evolutionLabel(evolution: EvolutionMode, t: ControlProps['t']): string {
+  return evolution === 'off' ? t('evolutionOff') : t('evolutionPropose')
+}
+
+function TaskModeControl({ getState, setWorking, setReasoning, setQuality, setEvolution, useProjection, t }: ControlProps) {
   const [state, setState] = useState<ModeState | undefined>()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [busy, setBusy] = useState<'working' | 'reasoning' | 'quality' | undefined>()
+  const [busy, setBusy] = useState<'working' | 'reasoning' | 'quality' | 'evolution' | undefined>()
   const [error, setError] = useState<string | undefined>()
   const plan = useProjection('plan')
   const working: 'execute' | 'plan' = plan !== undefined && (plan.pending ? !plan.active : plan.active) ? 'plan' : 'execute'
@@ -122,7 +153,8 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, usePr
   const disabled = state === undefined
   const reasoning = state?.reasoning ?? 'standard'
   const quality = state?.quality ?? 'off'
-  const summary = `${working === 'execute' ? t('execute') : t('plan')} · ${reasoning === 'standard' ? t('standard') : t('firstPrinciples')} · ${qualityLabel(quality, t)}`
+  const evolution = state?.evolution ?? 'off'
+  const summary = `${working === 'execute' ? t('execute') : t('plan')} · ${reasoning === 'standard' ? t('standard') : t('firstPrinciples')} · ${qualityLabel(quality, t)} · ${t('evolutionSummary')} ${evolutionLabel(evolution, t)}`
   const menuItems: MenuEntry[] = [
     { type: 'label', id: 'working-label', text: t('workingLabel') },
     { id: 'working.execute', label: t('execute'), icon: <IconCheckOutline14 /> },
@@ -136,6 +168,10 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, usePr
     { id: 'quality.off', label: qualityLabel('off', t), icon: <IconCheckOutline14 /> },
     { id: 'quality.general-review', label: qualityLabel('general-review', t), icon: <IconChecklistOutline14 /> },
     { id: 'quality.acceptance-review', label: qualityLabel('acceptance-review', t), icon: <IconChecklistOutline14 /> },
+    { type: 'separator', id: 'evolution-separator' },
+    { type: 'label', id: 'evolution-label', text: t('evolutionLabel') },
+    { id: 'evolution.off', label: t('evolutionOff'), icon: <IconCheckOutline14 /> },
+    { id: 'evolution.propose', label: t('evolutionPropose'), icon: <IconThinkOutline14 /> },
   ]
 
   return <span style={{ alignItems: 'center', display: 'inline-flex', minWidth: 0 }}>
@@ -147,6 +183,7 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, usePr
         `working.${working}`,
         `reasoning.${reasoning}`,
         `quality.${quality}`,
+        `evolution.${evolution}`,
       ]}
       onSelect={(id) => {
         setMenuOpen(false)
@@ -164,6 +201,10 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, usePr
           change('quality', () => setQuality('general-review'))
         } else if (id === 'quality.acceptance-review' && quality !== 'acceptance-review') {
           change('quality', () => setQuality('acceptance-review'))
+        } else if (id === 'evolution.off' && evolution !== 'off') {
+          change('evolution', () => setEvolution('off'))
+        } else if (id === 'evolution.propose' && evolution !== 'propose') {
+          change('evolution', () => setEvolution('propose'))
         }
       }}
       side="top"
@@ -179,7 +220,7 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, usePr
         >
           <IconThinkOutline14 />
           <span style={{ minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }}>{summary}</span>
-          <IconChevronDownOutline14 style={{ flex: '0 0 auto' }} />
+          <span style={{ display: 'inline-flex', flex: '0 0 auto' }}><IconChevronDownOutline14 /></span>
         </button>
       }
     />
@@ -207,7 +248,7 @@ function TaskModeReviewCommandView() { return null }
  * The unified task-mode button owns Plan interaction, so it takes the
  * composer's otherwise separate plan-status seat without adding another chip.
  */
-function UnifiedPlanSeat() { return null }
+function UnifiedPlanSeat(_props: PropsRuntime<'conversation.input.plan'>) { return null }
 
 interface TrajectoryContextViewNode extends ConversationViewNode {
   readonly target: 'trajectory'
@@ -256,6 +297,43 @@ const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMes
   buildViewNode: trajectoryContextNode,
 }
 
+function learnedInstructionBlock(system: string | undefined): string | undefined {
+  if (system === undefined) return undefined
+  const start = system.indexOf('<dsh-task-modes-learned-instructions>')
+  if (start < 0) return undefined
+  const endMarker = '</dsh-task-modes-learned-instructions>'
+  const end = system.indexOf(endMarker, start)
+  if (end < 0) return undefined
+  return system.slice(start, end + endMarker.length)
+}
+
+const learnedInstructionsTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
+  kind: 'task-mode-learned-instructions-injection',
+  target: 'trajectory',
+  match: event => {
+    if (event.type !== 'request/header') return null
+    return learnedInstructionBlock(event.data.header.system) === undefined
+      ? null
+      : { id: String(event.seq), role: 'start' }
+  },
+  start: (_context, match) => {
+    if (match.event.type !== 'request/header') throw new Error('learned-instructions Trajectory projection requires request/header')
+    const text = learnedInstructionBlock(match.event.data.header.system)
+    if (text === undefined) throw new Error('learned-instructions Trajectory projection matched without its marker block')
+    return {
+      kind: 'context',
+      seq: match.event.seq,
+      time: match.event.time,
+      content: [{ type: 'text', text }],
+      source: { kind: 'plugin', plugin: 'dsh-task-modes:evolution' },
+      provenance: { role: 'inject', label: 'dsh-task-modes:evolution' },
+      form: null,
+    }
+  },
+  update: context => context.state,
+  buildViewNode: trajectoryContextNode,
+}
+
 const en = {
   execute: 'Execute',
   plan: 'Plan',
@@ -267,22 +345,112 @@ const en = {
   qualityOff: 'Off',
   generalReview: 'Adversarial review',
   acceptanceReview: 'Acceptance review',
+  evolutionSummary: 'Evolution',
+  evolutionLabel: 'Self-evolution',
+  evolutionOff: 'Off',
+  evolutionPropose: 'Propose',
+  settingsNav: 'Self-evolution mode',
+  settingsTitle: 'Self-evolution mode',
+  settingsIntro: 'Configure global self-evolution learning and review durable changes before they affect future requests.',
+  settingsCurrent: 'Global settings',
+  settingsBatchSize: 'Learning after completed replies',
+  settingsBatchHint: 'A proposal run starts after this many completed parent replies.',
+  settingsBatchInvalid: 'Batch size must be an integer from 1 to 100.',
+  settingsProposalLimit: 'Pending proposal limit',
+  settingsProposalLimitHint: 'New learning runs stop adding proposals when this limit is reached.',
+  settingsProposalLimitInvalid: 'Pending proposal limit must be an integer from 1 to 1000.',
+  settingsProposals: 'Pending proposals',
+  settingsNoProposals: 'No pending proposals.',
+  settingsApply: 'Apply',
+  settingsDismiss: 'Dismiss',
+  settingsRules: 'Approved learned rules',
+  settingsAddRule: 'Add rule',
+  settingsEditRule: 'Edit rule',
+  settingsSaveRule: 'Save rule',
+  settingsCancel: 'Cancel',
+  settingsDelete: 'Delete',
+  settingsDeleteConfirm: 'Delete this approved learned rule?',
+  settingsCategory: 'Category',
+  settingsContent: 'Instruction',
+  settingsIdentity: 'Identity and background',
+  settingsPreference: 'Preferences',
+  settingsWorkRule: 'Work requirements',
+  settingsNoRules: 'No approved learned rules.',
+  settingsBackups: 'Backups',
+  settingsNoBackups: 'No learned-rule backups.',
+  settingsRestore: 'Restore',
+  settingsRestoreConfirm: 'Restore this learned-rule backup?',
+  settingsRuns: 'Learning runs',
+  settingsNoRuns: 'No learning runs.',
+  settingsLoading: 'Loading self-evolution settings…',
+  settingsSaving: 'Saving…',
+  settingsError: 'Self-evolution settings failed',
+  settingsEvidence: 'Evidence',
+  settingsInference: 'Inference',
+  settingsExplicit: 'Explicit',
+  settingsImplicit: 'Implicit',
+  settingsAdd: 'Add',
   unavailable: 'unavailable',
-  error: 'Task-mode update failed',
+  error: 'Mode update failed',
 }
 const zh: typeof en = {
-  execute: '执行',
+  execute: '正常',
   plan: '计划',
-  workingLabel: '工作状态',
+  workingLabel: '工作模式',
   reasoningLabel: '思考策略',
   standard: '标准',
   firstPrinciples: '第一性原理',
-  qualityLabel: '质量审查',
-  qualityOff: '关闭',
+  qualityLabel: '审查',
+  qualityOff: '关',
   generalReview: '对抗性审查',
   acceptanceReview: '验收审查',
+  evolutionSummary: '进化',
+  evolutionLabel: '自进化',
+  evolutionOff: '关',
+  evolutionPropose: '开',
+  settingsNav: '自进化模式',
+  settingsTitle: '自进化模式',
+  settingsIntro: '设置全局自进化学习规则，并在规则影响后续请求前审阅变更。',
+  settingsCurrent: '全局设置',
+  settingsBatchSize: '完成多少次回复后学习',
+  settingsBatchHint: '达到这个数量的父 Agent 回复后，才启动一次提议分析。',
+  settingsBatchInvalid: '学习批次必须是 1 到 100 的整数。',
+  settingsProposalLimit: '待审阅提议上限',
+  settingsProposalLimitHint: '达到上限后，新的学习运行不会继续添加提议。',
+  settingsProposalLimitInvalid: '待审阅提议上限必须是 1 到 1000 的整数。',
+  settingsProposals: '待审阅提议',
+  settingsNoProposals: '没有待审阅提议。',
+  settingsApply: '应用',
+  settingsDismiss: '忽略',
+  settingsRules: '已批准的学习规则',
+  settingsAddRule: '添加规则',
+  settingsEditRule: '编辑规则',
+  settingsSaveRule: '保存规则',
+  settingsCancel: '取消',
+  settingsDelete: '删除',
+  settingsDeleteConfirm: '删除这条已批准的学习规则？',
+  settingsCategory: '分类',
+  settingsContent: '规则内容',
+  settingsIdentity: '身份与背景',
+  settingsPreference: '偏好',
+  settingsWorkRule: '工作要求',
+  settingsNoRules: '没有已批准的学习规则。',
+  settingsBackups: '备份',
+  settingsNoBackups: '没有学习规则备份。',
+  settingsRestore: '恢复',
+  settingsRestoreConfirm: '恢复这份学习规则备份？',
+  settingsRuns: '学习运行记录',
+  settingsNoRuns: '没有学习运行记录。',
+  settingsLoading: '正在加载自进化设置…',
+  settingsSaving: '保存中…',
+  settingsError: '自进化设置失败',
+  settingsEvidence: '证据',
+  settingsInference: '推断方式',
+  settingsExplicit: '明确',
+  settingsImplicit: '隐含',
+  settingsAdd: '添加',
   unavailable: '不可用',
-  error: '任务模式更新失败',
+  error: '模式更新失败',
 }
 type TaskModesKey = keyof typeof en
 declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap { taskModes: TaskModesKey } }
@@ -292,13 +460,21 @@ function parseState(text: string): ModeState {
     const [key, value] = line.split(': ', 2)
     return [key, value]
   }))
+  const working = values.get('working')
   const reasoning = values.get('reasoning')
   const quality = values.get('quality')
-  if ((reasoning !== 'standard' && reasoning !== 'first-principles')
-    || (quality !== 'off' && quality !== 'general-review' && quality !== 'acceptance-review')) {
+  const evolution = values.get('evolution')
+  const learningBatchSize = Number(values.get('learning-batch-size'))
+  const pendingEvolutionTurns = Number(values.get('pending-evolution-turns'))
+  if ((working !== 'execute' && working !== 'plan')
+    || (reasoning !== 'standard' && reasoning !== 'first-principles')
+    || (quality !== 'off' && quality !== 'general-review' && quality !== 'acceptance-review')
+    || (evolution !== 'off' && evolution !== 'propose')
+    || !Number.isSafeInteger(learningBatchSize) || learningBatchSize < 1 || learningBatchSize > 100
+    || !Number.isSafeInteger(pendingEvolutionTurns) || pendingEvolutionTurns < 0) {
     throw new Error(`unexpected task-mode state: ${text}`)
   }
-  return { reasoning, quality }
+  return { working, reasoning, quality, evolution, learningBatchSize, pendingEvolutionTurns }
 }
 
 function parseReview(text: string): TaskModeReview | undefined {
@@ -316,10 +492,155 @@ function parseReview(text: string): TaskModeReview | undefined {
   return { turn, profile, status, text: reviewText, createdAt }
 }
 
+interface EvolutionRemoteFace {
+  dashboard(): Promise<EvolutionDashboard>
+  config(request: EvolutionConfigRequest): Promise<EvolutionDashboard>
+  proposal(request: EvolutionProposalRequest): Promise<EvolutionDashboard>
+  setting(request: EvolutionSettingRequest): Promise<EvolutionDashboard>
+  restore(request: EvolutionRestoreRequest): Promise<EvolutionDashboard>
+}
+
+interface EvolutionSettingsInjected {
+  evolution: EvolutionRemoteFace
+}
+
+type SettingsProps = PropsRuntime<'settings.section'> & PropsLocale<'taskModes'> & InjectFace<EvolutionSettingsInjected>
+
+const settingsSectionStyle: CSSProperties = { boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760, padding: '4px 0 32px' }
+const settingsBandStyle: CSSProperties = { borderTop: '1px solid var(--dsw-alias-line-light)', display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 16 }
+const settingsHeadingStyle: CSSProperties = { color: 'var(--dsw-alias-label-primary)', fontSize: 16, fontWeight: 600, lineHeight: '22px', margin: 0 }
+const settingsTextStyle: CSSProperties = { color: 'var(--dsw-alias-label-secondary)', fontSize: 12, lineHeight: '18px', margin: 0 }
+const settingsGridStyle: CSSProperties = { display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }
+const settingsFieldStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }
+const settingsLabelStyle: CSSProperties = { color: 'var(--dsw-alias-label-secondary)', fontSize: 11, fontWeight: 500, lineHeight: '16px' }
+const settingsControlStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', border: '1px solid var(--dsw-alias-line-light)', borderRadius: 6, boxSizing: 'border-box', color: 'var(--dsw-alias-label-primary)', fontSize: 12, minHeight: 32, padding: '6px 8px', width: '100%' }
+const settingsListStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 }
+const settingsItemStyle: CSSProperties = { background: 'var(--dsw-alias-bg-module-platform)', border: '1px solid var(--dsw-alias-line-light)', borderRadius: 6, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }
+const settingsMetaStyle: CSSProperties = { color: 'var(--dsw-alias-label-secondary)', fontSize: 11, lineHeight: '16px' }
+const settingsActionsStyle: CSSProperties = { alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 6 }
+
+function categoryLabel(category: EvolutionCategory, t: SettingsProps['t']): string {
+  if (category === 'identity') return t('settingsIdentity')
+  if (category === 'preference') return t('settingsPreference')
+  return t('settingsWorkRule')
+}
+
+function unwrapEvolution<T>(result: { ok: true; value: T } | { ok: false; error: { message: string; code: string } }): T {
+  if (!result.ok) throw new Error(`${result.error.message} (${result.error.code})`)
+  return result.value
+}
+
+interface RuleDraft {
+  readonly id: string | null
+  readonly category: EvolutionCategory
+  readonly content: string
+}
+
+function TaskModesSettings({ close, evolution, t }: SettingsProps) {
+  const [dashboard, setDashboard] = useState<EvolutionDashboard>()
+  const [batchText, setBatchText] = useState('3')
+  const [proposalLimitText, setProposalLimitText] = useState('100')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string>()
+  const [draft, setDraft] = useState<RuleDraft>()
+
+  useEffect(() => {
+    let live = true
+    setLoading(true)
+    setError(undefined)
+    void evolution.dashboard().then(value => {
+      if (!live) return
+      setDashboard(value)
+      setBatchText(String(value.config.learningBatchSize))
+      setProposalLimitText(String(value.config.maxPendingProposals))
+    }).catch(reason => {
+      if (live) setError(reason instanceof Error ? reason.message : String(reason))
+    }).finally(() => { if (live) setLoading(false) })
+    return () => { live = false }
+  }, [evolution])
+
+  const mutate = (operation: () => Promise<EvolutionDashboard>): void => {
+    setSaving(true)
+    setError(undefined)
+    void operation().then(value => { setDashboard(value); setDraft(undefined) }).catch(reason => {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    }).finally(() => { setSaving(false) })
+  }
+  const updateConfig = (config: EvolutionConfig): void => {
+    setSaving(true)
+    setError(undefined)
+    void evolution.config({ config }).then(value => {
+      setDashboard(value)
+      setBatchText(String(value.config.learningBatchSize))
+      setProposalLimitText(String(value.config.maxPendingProposals))
+    }).catch(reason => { setError(reason instanceof Error ? reason.message : String(reason)) }).finally(() => { setSaving(false) })
+  }
+
+  const proposals = (dashboard?.proposals ?? []).filter(item => item.status === 'pending')
+  const settings = dashboard?.settings ?? []
+  const backups = dashboard?.backups ?? []
+
+  const saveConfig = (): void => {
+    const value = Number(batchText)
+    if (!Number.isSafeInteger(value) || value < 1 || value > 100) {
+      setError(t('settingsBatchInvalid'))
+      return
+    }
+    const maxPendingProposals = Number(proposalLimitText)
+    if (!Number.isSafeInteger(maxPendingProposals) || maxPendingProposals < 1 || maxPendingProposals > 1000) {
+      setError(t('settingsProposalLimitInvalid'))
+      return
+    }
+    updateConfig({ learningBatchSize: value, maxPendingProposals })
+  }
+
+  return <div style={settingsSectionStyle}>
+    <div>
+      <h2 style={settingsHeadingStyle}>{t('settingsTitle')}</h2>
+      <p style={{ ...settingsTextStyle, marginTop: 6 }}>{t('settingsIntro')}</p>
+    </div>
+    {error === undefined ? null : <p role="alert" style={{ ...settingsTextStyle, color: 'var(--dsw-alias-label-danger)' }}>{error}</p>}
+    <section style={settingsBandStyle}>
+      <h3 style={settingsHeadingStyle}>{t('settingsCurrent')}</h3>
+      <div style={settingsGridStyle}>
+        <label style={settingsFieldStyle}><span style={settingsLabelStyle}>{t('settingsBatchSize')}</span><input style={settingsControlStyle} type="number" min={1} max={100} value={batchText} disabled={saving || loading} onChange={event => setBatchText(event.target.value)} onBlur={saveConfig} /></label>
+        <label style={settingsFieldStyle}><span style={settingsLabelStyle}>{t('settingsProposalLimit')}</span><input style={settingsControlStyle} type="number" min={1} max={1000} value={proposalLimitText} disabled={saving || loading} onChange={event => setProposalLimitText(event.target.value)} onBlur={saveConfig} /></label>
+      </div>
+      <p style={settingsTextStyle}>{t('settingsBatchHint')}</p>
+      <p style={settingsTextStyle}>{t('settingsProposalLimitHint')}</p>
+    </section>
+    {loading ? <p style={settingsTextStyle}>{t('settingsLoading')}</p> : <>
+      <section style={settingsBandStyle}><h3 style={settingsHeadingStyle}>{t('settingsProposals')}</h3>{proposals.length === 0 ? <p style={settingsTextStyle}>{t('settingsNoProposals')}</p> : <div style={settingsListStyle}>{proposals.map(proposal => <ProposalRow key={proposal.id} proposal={proposal} t={t} saving={saving} onApply={() => mutate(() => evolution.proposal({ id: proposal.id, action: 'apply' }))} onDismiss={() => mutate(() => evolution.proposal({ id: proposal.id, action: 'dismiss' }))} />)}</div>}</section>
+      <section style={settingsBandStyle}><div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}><h3 style={settingsHeadingStyle}>{t('settingsRules')}</h3><Button size="sm" variant="outline" icon={<IconPlusOutline16 size={14} />} disabled={saving} onClick={() => setDraft({ id: null, category: 'work_rule', content: '' })}>{t('settingsAddRule')}</Button></div>{draft === undefined ? null : <RuleEditor draft={draft} t={t} saving={saving} onCancel={() => setDraft(undefined)} onSave={(mutation) => mutate(() => evolution.setting({ mutation }))} />}{settings.length === 0 ? <p style={settingsTextStyle}>{t('settingsNoRules')}</p> : <div style={settingsListStyle}>{settings.map(setting => <RuleRow key={setting.id} setting={setting} t={t} saving={saving} onEdit={() => setDraft({ id: setting.id, category: setting.category, content: setting.content })} onDelete={() => { if (window.confirm(t('settingsDeleteConfirm'))) mutate(() => evolution.setting({ mutation: { action: 'delete', id: setting.id } })) }} />)}</div>}</section>
+      <section style={settingsBandStyle}><h3 style={settingsHeadingStyle}>{t('settingsBackups')}</h3>{backups.length === 0 ? <p style={settingsTextStyle}>{t('settingsNoBackups')}</p> : <div style={settingsListStyle}>{backups.map(backup => <div key={backup.id} style={settingsItemStyle}><span style={settingsMetaStyle}>{backup.summary} · {new Date(backup.createdAt).toLocaleString()}</span><div style={settingsActionsStyle}><Button size="sm" variant="outline" icon={<IconRefreshOutline14 />} disabled={saving} onClick={() => { if (window.confirm(t('settingsRestoreConfirm'))) mutate(() => evolution.restore({ id: backup.id })) }}>{t('settingsRestore')}</Button></div></div>)}</div>}</section>
+      <section style={settingsBandStyle}><h3 style={settingsHeadingStyle}>{t('settingsRuns')}</h3>{(dashboard?.runs ?? []).length === 0 ? <p style={settingsTextStyle}>{t('settingsNoRuns')}</p> : <div style={settingsListStyle}>{(dashboard?.runs ?? []).map(run => <div key={run.id} style={settingsItemStyle}><span style={settingsMetaStyle}>{run.status} · {run.turns.join(', ')} · {new Date(run.createdAt).toLocaleString()}</span>{run.error === null ? null : <span style={{ ...settingsMetaStyle, color: 'var(--dsw-alias-label-danger)' }}>{run.error}</span>}</div>)}</div>}</section>
+    </>}
+    <div style={{ ...settingsActionsStyle, justifyContent: 'flex-end' }}><Button size="sm" variant="outline" onClick={close}>{t('settingsCancel')}</Button></div>
+  </div>
+}
+
+function ProposalRow({ proposal, t, saving, onApply, onDismiss }: { proposal: EvolutionDashboard['proposals'][number]; t: SettingsProps['t']; saving: boolean; onApply: () => void; onDismiss: () => void }) {
+  return <div style={settingsItemStyle}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}><strong style={settingsMetaStyle}>{proposal.action}</strong>{proposal.category === null ? null : <span style={settingsMetaStyle}>{categoryLabel(proposal.category, t)}</span>}</div>{proposal.content === null ? <span style={settingsTextStyle}>{proposal.deleteReason ?? ''}</span> : <span style={settingsTextStyle}>{proposal.content}</span>}<span style={settingsMetaStyle}>{t('settingsInference')}: {proposal.inference === 'explicit' ? t('settingsExplicit') : t('settingsImplicit')}</span><details><summary style={{ cursor: 'pointer', fontSize: 11 }}>{t('settingsEvidence')} ({proposal.evidence.length})</summary><div style={{ ...settingsMetaStyle, whiteSpace: 'pre-wrap' }}>{proposal.evidence.map(item => `${item.sessionId}#${item.turn}: ${item.excerpt}`).join('\n')}</div></details><div style={settingsActionsStyle}><Button size="sm" variant="outline" icon={<IconCheckOutline16 size={14} />} disabled={saving} onClick={onApply}>{t('settingsApply')}</Button><Button size="sm" variant="ghost" icon={<IconCloseOutline16 size={14} />} disabled={saving} onClick={onDismiss}>{t('settingsDismiss')}</Button></div></div>
+}
+
+function RuleEditor({ draft, t, saving, onCancel, onSave }: { draft: RuleDraft; t: SettingsProps['t']; saving: boolean; onCancel: () => void; onSave: (mutation: EvolutionSettingRequest['mutation']) => void }) {
+  const [category, setCategory] = useState(draft.category)
+  const [content, setContent] = useState(draft.content)
+  const valid = content.trim() !== ''
+  return <div style={settingsItemStyle}><label style={settingsFieldStyle}><span style={settingsLabelStyle}>{t('settingsCategory')}</span><select style={settingsControlStyle} value={category} disabled={saving} onChange={event => setCategory(event.target.value as EvolutionCategory)}><option value="identity">{t('settingsIdentity')}</option><option value="preference">{t('settingsPreference')}</option><option value="work_rule">{t('settingsWorkRule')}</option></select></label><label style={settingsFieldStyle}><span style={settingsLabelStyle}>{t('settingsContent')}</span><textarea style={{ ...settingsControlStyle, minHeight: 84, resize: 'vertical' }} value={content} disabled={saving} onChange={event => setContent(event.target.value)} /></label><div style={settingsActionsStyle}><Button size="sm" variant="outline" icon={<IconCheckOutline16 size={14} />} disabled={!valid || saving} onClick={() => onSave(draft.id === null ? { action: 'add', category, content: content.trim() } : { action: 'update', id: draft.id, category, content: content.trim() })}>{t('settingsSaveRule')}</Button><Button size="sm" variant="ghost" disabled={saving} onClick={onCancel}>{t('settingsCancel')}</Button></div></div>
+}
+
+function RuleRow({ setting, t, saving, onEdit, onDelete }: { setting: EvolutionDashboard['settings'][number]; t: SettingsProps['t']; saving: boolean; onEdit: () => void; onDelete: () => void }) {
+  return <div style={settingsItemStyle}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}><span style={settingsMetaStyle}>{categoryLabel(setting.category, t)}</span></div><span style={settingsTextStyle}>{setting.content}</span><div style={settingsActionsStyle}><Button size="sm" variant="ghost" icon={<IconEditOutline16 size={14} />} disabled={saving} onClick={onEdit}>{t('settingsEditRule')}</Button><Button size="sm" variant="ghost" icon={<IconTrashOutline16 size={14} />} disabled={saving} onClick={onDelete}>{t('settingsDelete')}</Button></div></div>
+}
+
 /** Mount composable task-mode controls, persisted review history, and Trajectory evidence. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('taskModes', { en, zh }), 'dsh-task-modes: locale')
+  ctx.effect(() => ctx.remote.$mount(taskModesRemote), 'dsh-task-modes: evolution Remote')
   ctx.conversationEvents.register(firstPrinciplesTrajectoryDefinition)
+  ctx.conversationEvents.register(learnedInstructionsTrajectoryDefinition)
   const execute = async (sessionId: string, line: string): Promise<string> => {
     const response = await ctx.remote.commands.execute(sessionId as never, line)
     if (!response.ok) throw new Error(`${response.error.message} (${response.error.code})`)
@@ -332,10 +653,29 @@ export function apply(ctx: ClientContext): void {
     setWorking: async value => parseState(await execute(sessionId, `/task-mode working ${value}`)),
     setReasoning: async value => parseState(await execute(sessionId, `/task-mode reasoning ${value}`)),
     setQuality: async value => parseState(await execute(sessionId, `/task-mode quality ${value}`)),
+    setEvolution: async value => parseState(await execute(sessionId, `/task-mode evolution ${value}`)),
+    setBatchSize: async value => parseState(await execute(sessionId, `/task-mode evolution batch-size ${value}`)),
     review: async turn => parseReview(await execute(sessionId, `/task-mode-review ${turn}`)),
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
-  ctx.slots.inject('conversation.input.plan', () => ctx.slots.register({ name: 'conversation.input.plan', id: 'task-modes-plan-seat', priority: -1 }, UnifiedPlanSeat))
+  ctx.slots.inject('conversation.input.plan', () => ctx.slots.register({ name: 'conversation.input.plan', priority: -1 }, UnifiedPlanSeat))
   ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
   ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({ name: 'conversation.chat.commandview', key: 'task-mode-review' }, TaskModeReviewCommandView))
+  ctx.inject(['remote.taskModesEvolution'], scope => {
+    const evolution: EvolutionRemoteFace = {
+      dashboard: async () => unwrapEvolution(await scope.remote.taskModesEvolution.dashboard({})),
+      config: async request => unwrapEvolution(await scope.remote.taskModesEvolution.config(request)),
+      proposal: async request => unwrapEvolution(await scope.remote.taskModesEvolution.proposal(request)),
+      setting: async request => unwrapEvolution(await scope.remote.taskModesEvolution.setting(request)),
+      restore: async request => unwrapEvolution(await scope.remote.taskModesEvolution.restore(request)),
+    }
+    scope.slots.inject('settings.section', () => scope.slots.register({
+      name: 'settings.section',
+      id: 'task-modes',
+      order: 12,
+      label: () => scope.locale.bind('taskModes')('settingsNav'),
+      locale: 'taskModes',
+      inject: (): EvolutionSettingsInjected => ({ evolution }),
+    }, TaskModesSettings))
+  })
 }
