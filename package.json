@@ -31,7 +31,7 @@
     "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
     "./package.json": "./package.json"
   },
-  "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.zh.md", "LICENSE"],
+  "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.en.md", "README.zh.md", "LICENSE"],
   "scripts": {
     "build": "tsdown && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
     "test": "node --test tests/*.test.mjs",
