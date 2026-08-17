@@ -10,7 +10,38 @@
 
 ![dsh-evolve-modes](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/social-preview.png)
 
-## 快速入门
+## 快速安装
+
+推荐通过 npm 将固定版本安装到 DeepSeek Harness Web profile：
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
+```
+
+如果已经全局安装 DSH CLI，可以使用简写：
+
+```sh
+dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
+```
+
+也可以直接安装对应的 GitHub Release 包：
+
+```sh
+dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
+```
+
+重启 Web profile 后，自进化模式控件会出现在输入区工具旁。打开顶层 **自进化模式** 设置即可管理全局学习规则。
+
+需要审计源码或进行开发时，可以安装固定 Git revision：
+
+```sh
+dsh plugin --profile web add github:GraySilver/dsh-evolve-modes#<trusted-commit>
+```
+
+Git 安装包会执行安装期代码，请只安装可信 revision。
+
+
+## 功能简述
 
 输入区会显示当前组合，例如：
 
@@ -25,7 +56,7 @@
 | **工作状态** | 正常 · 计划 | 立即完成任务，或进入官方 DSH 计划工作流。 |
 | **思考策略** | 标准 · 第一性原理 | 正常回答，或显式梳理目标、事实、假设、约束、推导和验证。 |
 | **质量门禁** | 关 · 对抗性审查 · 验收审查 | 不增加审查，独立寻找风险，或对照任务和已批准计划验收结果。 |
-| **自进化** | 关 · 开 | 不分析长期规则，或在完成若干次回复后生成待人工审阅的规则提议。 |
+| **自进化** | 关 · 开 | 自动分析会话，生成待人工审阅的规则提议，自动优化AGENTS.md（但不改动 AGENTS.md）|
 
 这不是互斥的“人格模式”，而是每个任务都可以重新组合的一组工作决策。
 
@@ -98,35 +129,7 @@
 | 挑战高风险答案 | `正常 · 第一性原理 · 对抗性审查` | 显式展开推理，再寻找遗漏、反例、回归和缺少依据的结论。 |
 | 沉淀稳定的个人偏好 | `正常 · 标准 · 关 · 进化 开` | 按默认每 3 次回复一批识别长期规则，只生成提议，不自动启用。 |
 
-## 一条命令安装
 
-推荐通过 npm 将固定版本安装到 DeepSeek Harness Web profile：
-
-```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
-```
-
-如果已经全局安装 DSH CLI，可以使用简写：
-
-```sh
-dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
-```
-
-也可以直接安装对应的 GitHub Release 包：
-
-```sh
-dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
-```
-
-重启 Web profile 后，自进化模式控件会出现在输入区工具旁。打开顶层 **自进化模式** 设置即可管理全局学习规则。
-
-需要审计源码或进行开发时，可以安装固定 Git revision：
-
-```sh
-dsh plugin --profile web add github:GraySilver/dsh-evolve-modes#<trusted-commit>
-```
-
-Git 安装包会执行安装期代码，请只安装可信 revision。
 
 ## 质量门禁
 
