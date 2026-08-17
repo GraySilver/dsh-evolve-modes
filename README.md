@@ -100,7 +100,19 @@
 
 ## 一条命令安装
 
-将 GitHub Release 包安装到 DeepSeek Harness Web profile：
+推荐通过 npm 将固定版本安装到 DeepSeek Harness Web profile：
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
+```
+
+如果已经全局安装 DSH CLI，可以使用简写：
+
+```sh
+dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.3.0
+```
+
+也可以直接安装对应的 GitHub Release 包：
 
 ```sh
 dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
