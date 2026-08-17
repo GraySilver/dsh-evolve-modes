@@ -1,30 +1,57 @@
 # dsh-task-modes
 
+> Make every agent turn intentional.
+
+**dsh-task-modes** is an independent Web plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns one compact composer control into a deliberate workflow: choose how the agent should work, how it should reason, and how rigorously its result should be checked.
+
+No fork of DeepSeek Harness. No duplicate agent loop. Install the plugin, choose a combination, and keep that decision visible in every session.
+
 [中文文档](README.zh.md)
-
-An independent, installable DeepSeek Harness Web bundle with one task-mode button and three composable dimensions, without changing DeepSeek Harness core:
-
-- working state: Execute or Plan;
-- reasoning: Standard or First principles;
-- quality gate: Off, Adversarial review, or Acceptance review.
 
 ![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
-## Install
+## One Control, Three Decisions
 
-Install the pinned npm release into a Web profile without requiring a global DSH installation:
+The composer shows one concise summary:
+
+```text
+Execute · Standard · Off
+```
+
+Open it to compose three independent dimensions:
+
+| Decision | Options | What it changes |
+| --- | --- | --- |
+| **Working state** | Execute · Plan | Choose immediate execution or the official DSH planning workflow. |
+| **Reasoning strategy** | Standard · First principles | Work normally, or require explicit objectives, facts, assumptions, constraints, derivation, and verification. |
+| **Quality gate** | Off · Adversarial review · Acceptance review | Skip review, challenge the answer independently, or check it against the task and an approved plan. |
+
+This is not a collection of mutually exclusive modes. It is a small operating model for each task.
+
+## Pick the Right Combination
+
+| When you need to... | Choose | Why |
+| --- | --- | --- |
+| Move quickly on routine work | `Execute · Standard · Off` | Keep the agent focused on delivery without extra ceremony. |
+| Make a high-impact decision | `Plan · First principles · Off` | Research first, expose assumptions, derive the approach, then use DSH's approval flow. |
+| Build with confidence | `Execute · Standard · Acceptance review` | Implement normally, then independently check the result against the requested outcome. |
+| Challenge a risky answer | `Execute · First principles · Adversarial review` | Make reasoning explicit and ask a separate reviewer to find omissions, counterexamples, and unsupported claims. |
+
+## Install in One Command
+
+Install the published npm release into the DeepSeek Harness Web profile:
 
 ```sh
 npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
 ```
 
-If `dsh` is already installed globally, use:
+Or, when `dsh` is already installed:
 
 ```sh
 dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
 ```
 
-Restart the Web profile after installation. One task-mode button appears beside the composer tools. Its label reflects the active combination, for example `Execute · Standard · Off`; opening it presents all three dimensions. The bundle takes the separate Plan-status UI seat, so the composer has one task-mode entry point while retaining the official Plan service and approval workflow. The bundle requires the standard DSH Plan mode capability; it deliberately fails to load when that service is absent instead of presenting a fake Plan mode.
+Restart the Web profile. The task-mode control appears beside the composer tools.
 
 For source auditing or development, install a pinned Git revision instead:
 
@@ -34,43 +61,60 @@ dsh plugin --profile web add github:GraySilver/dsh-task-modes#<trusted-commit>
 
 Git-hosted plugins execute install-time code, so install only revisions you trust.
 
-## Task-mode menu
+## Built for Real Agent Work
 
-The task-mode button opens one grouped menu. Its default is `Execute · Standard · Off`. The three dimensions are independent, so choose Plan plus First principles for a high-impact decision, or Execute plus Acceptance review while implementing a feature.
-
-| Control | Values | Behavior |
-| --- | --- | --- |
-| Working state | Execute, Plan | Plan delegates to the official `@deepseek-ai/dsh-plan-mode` service, including `/plan`, its persisted `plan/mode` event, and the `exit_plan_mode` user-approval workflow. |
-| Reasoning | Standard, First principles | First principles adds a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. |
-| Quality gate | Off, Adversarial review, Acceptance review | Runs one independent advisory fork after each completed parent turn. Adversarial and Acceptance are mutually exclusive profiles, not separate stacked reviewers. |
-
-### Plan mode and tools
-
-When official Plan mode is active, this plugin enforces a tool policy through DSH's `tools/pre-execute` pipeline. It permits only `read`, `glob`, `grep`, `read_image`, the configured platform shell, and `exit_plan_mode`; mutation and all other tools receive a clear denial.
-
-The configured shell is intentionally fully available: `bash` on macOS/Linux or `pwsh` on Windows by default. This means Plan mode is **not** an operating-system read-only sandbox. A model or reviewer can issue mutating shell commands if it chooses to do so. Use a confining shell/sandbox provider and permission policy when process isolation is required.
-
-Plan review does not delay or gate official `exit_plan_mode` approval. If a quality profile is enabled, the plugin produces its advisory report after the completed Plan turn. When the official exit tool successfully submitted a plan, that plan is the review candidate rather than only the assistant's surrounding text.
-
-### First principles evidence
-
-The First principles section is included in the persisted `request/header.system`. Trajectory projects that exact section as a context-style inspection row, so historical requests visibly show the injection. It does not append a user message or otherwise add an artificial transcript event. Turning it off removes the section from later requests while earlier rows remain as historical evidence.
-
-### Quality profiles
-
-Adversarial review checks the task and answer for unmet requirements, unsupported claims, omissions, regressions, counterexamples, and security risks. It returns an advisory Markdown verdict with evidence and concrete follow-up actions.
-
-Acceptance review independently compares the task, candidate answer, and an approved plan when available. Its Markdown checklist separates `Met`, `Gap`, `Unverified`, `Evidence`, and `Concrete follow-up` items. It is a model/subagent review only: it does not auto-detect or execute project test, lint, or build commands, and it never rewrites, retries, or fixes the parent result.
-
-Both reviewers can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell. Their prompts request non-mutating inspection, but those prompt constraints are not an operating-system sandbox. A review failure is persisted as unavailable and never blocks the parent answer or Plan approval.
-
-The Web client renders each review as collapsed Markdown below the matching AI reply. The expanded report has a fixed 240px scrollable body.
+- **One visible decision point.** The selected combination stays readable beside the composer instead of scattering state across separate controls.
+- **First-principles reasoning you can inspect.** The extra instruction is persisted in `request/header.system` and appears in Trajectory as evidence of what the model received.
+- **Plan mode without a competing implementation.** Plan delegates to the official DSH Plan service, its persisted `plan/mode` event, and its `exit_plan_mode` approval workflow.
+- **Independent review where it matters.** Adversarial and Acceptance review run as a forked agent after each completed parent response and render a Markdown report directly below that response.
+- **No hidden rewriting.** Reviews identify evidence, gaps, and concrete follow-up actions, but never silently alter, retry, or fix the parent answer.
+- **Plugin-first distribution.** Install through npm, audit a pinned Git revision when needed, and leave DeepSeek Harness core untouched.
 
 ![Task-mode review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
 
-## Persistence and commands
+## Quality Gates That Explain Themselves
 
-The bundle stores its records in the `graysilver_task_modes` storage domain. Working state is deliberately not duplicated there: it is folded by official Plan mode from the session log. Reasoning choices, quality choices, and reports survive service restarts and session reloads without adding custom DSH session event types.
+### Adversarial review
+
+An independent reviewer checks the task and answer for unmet requirements, unsupported claims, omissions, regressions, counterexamples, and security risks. Use it when a plausible answer is not enough.
+
+### Acceptance review
+
+An independent reviewer compares the task, candidate answer, and an approved plan when one exists. Its Markdown report separates:
+
+```text
+Met
+Gap
+Unverified
+Evidence
+Concrete follow-up
+```
+
+Use it when you want a clear handoff from implementation to verification.
+
+## How the Workflow Holds Up
+
+### Plan mode and tools
+
+Plan delegates to the official `@deepseek-ai/dsh-plan-mode` service. This plugin enforces a tool policy through DSH's `tools/pre-execute` pipeline: `read`, `glob`, `grep`, `read_image`, the configured platform shell, and `exit_plan_mode` are allowed; mutation and all other tools receive a clear denial.
+
+The configured shell is intentionally fully available: `bash` on macOS/Linux or `pwsh` on Windows by default. Plan mode is a workflow policy, not an operating-system read-only sandbox. Configure a confining shell or sandbox provider when process isolation matters.
+
+Plan review does not delay or gate official `exit_plan_mode` approval. When the official exit tool successfully submits a plan, that plan is the review candidate rather than only the surrounding assistant text.
+
+### First-principles evidence
+
+The First principles section is persisted in `request/header.system`. Trajectory projects that exact section as a context-style inspection row, so historical requests show the instruction the model received. It does not append a user message or create an artificial transcript event. Turning the strategy off removes the section from later requests while earlier rows remain as historical evidence.
+
+### Review behavior and limits
+
+Both reviewers can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell. Their prompts request non-mutating inspection, but prompt restrictions are not an operating-system sandbox. A review failure is persisted as unavailable and never blocks the parent response or Plan approval.
+
+Quality review adds one model call and corresponding latency per completed parent answer. It does not auto-detect or execute project test, lint, or build commands.
+
+## Persistence and Commands
+
+The bundle stores its records in the `graysilver_task_modes` storage domain. Working state is not duplicated there: official Plan mode folds it from the session log. Reasoning choices, quality choices, and reports survive service restarts and session reloads without adding custom DSH session event types.
 
 Version `0.2.0` keeps the domain descriptor at version `1` and automatically rewrites legacy records on startup:
 
