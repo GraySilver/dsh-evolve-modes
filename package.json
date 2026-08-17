@@ -1,7 +1,7 @@
 {
   "name": "@graysilver/dsh-task-modes",
-  "version": "0.1.9",
-  "description": "Task modes for DeepSeek Harness Web: normal execution, first-principles prompting, and independent adversarial review.",
+  "version": "0.2.0",
+  "description": "Composable working, reasoning, and quality controls for DeepSeek Harness Web.",
   "license": "MIT",
   "homepage": "https://github.com/GraySilver/dsh-task-modes#readme",
   "repository": {
@@ -17,7 +17,9 @@
     "dsh-plugin",
     "ai-agents",
     "prompt-engineering",
-    "agent-review"
+    "agent-review",
+    "plan-mode",
+    "acceptance-review"
   ],
   "type": "module",
   "packageManager": "pnpm@10.15.0",
@@ -59,11 +61,14 @@
     "@deepseek-ai/cordis": "^4.0.1-rc.1",
     "@deepseek-ai/dsh-api-remotes": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-agent": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-commands": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-plan-mode": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-session": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-storage-domain": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-subagent": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-system-prompt": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-tools": "^0.0.1-rc.1",
     "react": "^18.2.0"
   },
   "dependencies": {
@@ -74,6 +79,7 @@
     "@deepseek-ai/cordis": "^4.0.1-rc.1",
     "@deepseek-ai/dsh-api-remotes": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-agent": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-connection": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-locale": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-runtime": "^0.0.1-rc.1",
@@ -81,10 +87,12 @@
     "@deepseek-ai/dsh-client-ui-primitives": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-client-ui-slots": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-commands": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-plan-mode": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-session": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-storage-domain": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-subagent": "^0.0.1-rc.1",
     "@deepseek-ai/dsh-system-prompt": "^0.0.1-rc.1",
+    "@deepseek-ai/dsh-tools": "^0.0.1-rc.1",
     "@types/react": "^18.3.1",
     "react": "^18.2.0",
     "tsdown": "^0.15.8",

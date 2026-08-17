@@ -2,7 +2,11 @@
 
 [中文文档](README.zh.md)
 
-An independent, installable DeepSeek Harness Web bundle that adds three task modes: normal execution, first-principles prompting, and an independent forked adversarial review. It works through the DSH plugin layer and does not modify DSH core.
+An independent, installable DeepSeek Harness Web bundle with one task-mode button and three composable dimensions, without changing DeepSeek Harness core:
+
+- working state: Execute or Plan;
+- reasoning: Standard or First principles;
+- quality gate: Off, Adversarial review, or Acceptance review.
 
 ![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
@@ -11,62 +15,91 @@ An independent, installable DeepSeek Harness Web bundle that adds three task mod
 Install the pinned npm release into a Web profile without requiring a global DSH installation:
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
 ```
 
-If `dsh` is already installed globally, use the shorter command:
+If `dsh` is already installed globally, use:
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.1.9
+dsh plugin --profile web add @graysilver/dsh-task-modes@0.2.0
 ```
 
-Restart the Web profile after installation. The mode selector appears beside the composer tools.
+Restart the Web profile after installation. One task-mode button appears beside the composer tools. Its label reflects the active combination, for example `Execute · Standard · Off`; opening it presents all three dimensions. The bundle takes the separate Plan-status UI seat, so the composer has one task-mode entry point while retaining the official Plan service and approval workflow. The bundle requires the standard DSH Plan mode capability; it deliberately fails to load when that service is absent instead of presenting a fake Plan mode.
 
-For source auditing or development, install the pinned Git revision instead:
+For source auditing or development, install a pinned Git revision instead:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#ca239e55f382816d0d1444f4eb9742e22945018e
+dsh plugin --profile web add github:GraySilver/dsh-task-modes#<trusted-commit>
 ```
 
 Git-hosted plugins execute install-time code, so install only revisions you trust.
 
-## Modes
+## Task-mode menu
 
-| Mode | Behavior | Best for |
+The task-mode button opens one grouped menu. Its default is `Execute · Standard · Off`. The three dimensions are independent, so choose Plan plus First principles for a high-impact decision, or Execute plus Acceptance review while implementing a feature.
+
+| Control | Values | Behavior |
 | --- | --- | --- |
-| Normal mode | Sends the request without extra mode instructions. | Everyday work. |
-| First Principles | Injects a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. Trajectory projects that exact section from the persisted request header as a context-style inspection row. | Ambiguous or high-leverage decisions. |
-| Adversarial Review | After the parent text answer completes, starts a forked child agent to inspect the current task and answer, then renders a Markdown report below that reply. | Catching omissions and unsupported assumptions. |
+| Working state | Execute, Plan | Plan delegates to the official `@deepseek-ai/dsh-plan-mode` service, including `/plan`, its persisted `plan/mode` event, and the `exit_plan_mode` user-approval workflow. |
+| Reasoning | Standard, First principles | First principles adds a system-prompt section that asks the model to state objectives, separate facts from assumptions, identify constraints, derive the approach, and verify the result. |
+| Quality gate | Off, Adversarial review, Acceptance review | Runs one independent advisory fork after each completed parent turn. Adversarial and Acceptance are mutually exclusive profiles, not separate stacked reviewers. |
 
-The reviewer can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell (`bash` on macOS/Linux or `pwsh` on Windows). Its prompt requests non-mutating inspection and no background processes. A reviewer failure is recorded as unavailable and never blocks the parent answer.
+### Plan mode and tools
 
-![Adversarial review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
+When official Plan mode is active, this plugin enforces a tool policy through DSH's `tools/pre-execute` pipeline. It permits only `read`, `glob`, `grep`, `read_image`, the configured platform shell, and `exit_plan_mode`; mutation and all other tools receive a clear denial.
 
-### Cost and limits
+The configured shell is intentionally fully available: `bash` on macOS/Linux or `pwsh` on Windows by default. This means Plan mode is **not** an operating-system read-only sandbox. A model or reviewer can issue mutating shell commands if it chooses to do so. Use a confining shell/sandbox provider and permission policy when process isolation is required.
 
-- Adversarial Review adds one model call and corresponding latency per completed parent answer.
-- The report is advisory. It does not automatically rewrite or retry the parent answer.
-- The child uses the tools registered in the profile; tool restrictions in the prompt are not an operating-system sandbox.
-- The plugin shares the Harness process privileges. Treat it as trusted code and install pinned revisions.
+Plan review does not delay or gate official `exit_plan_mode` approval. If a quality profile is enabled, the plugin produces its advisory report after the completed Plan turn. When the official exit tool successfully submitted a plan, that plan is the review candidate rather than only the assistant's surrounding text.
+
+### First principles evidence
+
+The First principles section is included in the persisted `request/header.system`. Trajectory projects that exact section as a context-style inspection row, so historical requests visibly show the injection. It does not append a user message or otherwise add an artificial transcript event. Turning it off removes the section from later requests while earlier rows remain as historical evidence.
+
+### Quality profiles
+
+Adversarial review checks the task and answer for unmet requirements, unsupported claims, omissions, regressions, counterexamples, and security risks. It returns an advisory Markdown verdict with evidence and concrete follow-up actions.
+
+Acceptance review independently compares the task, candidate answer, and an approved plan when available. Its Markdown checklist separates `Met`, `Gap`, `Unverified`, `Evidence`, and `Concrete follow-up` items. It is a model/subagent review only: it does not auto-detect or execute project test, lint, or build commands, and it never rewrites, retries, or fixes the parent result.
+
+Both reviewers can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell. Their prompts request non-mutating inspection, but those prompt constraints are not an operating-system sandbox. A review failure is persisted as unavailable and never blocks the parent answer or Plan approval.
+
+The Web client renders each review as collapsed Markdown below the matching AI reply. The expanded report has a fixed 240px scrollable body.
+
+![Task-mode review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
 
 ## Persistence and commands
 
-The bundle stores its records in the `graysilver_task_modes` storage domain. It does not add custom DSH session event types, so it remains compatible with released DSH persistence while mode selections and review reports survive service restarts and session reloads.
+The bundle stores its records in the `graysilver_task_modes` storage domain. Working state is deliberately not duplicated there: it is folded by official Plan mode from the session log. Reasoning choices, quality choices, and reports survive service restarts and session reloads without adding custom DSH session event types.
 
-Use these commands in the Web composer:
+Version `0.2.0` keeps the domain descriptor at version `1` and automatically rewrites legacy records on startup:
 
-- `/task-mode` shows the current mode.
-- `/task-mode <normal|first-principles|adversarial-review>` switches modes.
-- `/task-mode review <turn>` opens one review report.
-- `/task-mode reviews` lists saved reports.
+| Legacy mode | Reasoning | Quality gate |
+| --- | --- | --- |
+| `normal` | `standard` | `off` |
+| `first-principles` | `first-principles` | `off` |
+| `adversarial-review` | `standard` | `general-review` |
 
-The Web client renders each report as collapsed Markdown beneath its corresponding AI reply. Expanding it opens a fixed-height, scrollable panel.
+Use these commands in the Web composer or through the command API:
 
-The first-principles Trajectory row is inspection-only. It is derived from a persisted `request/header.system` that contains the exact guidance; it does not append a user message or change the model request. Switching to another mode removes the section from the next model request, while earlier Trajectory rows remain as evidence of what those historical requests used.
+```text
+/task-mode
+/task-mode working execute
+/task-mode working plan
+/task-mode reasoning standard
+/task-mode reasoning first-principles
+/task-mode quality off
+/task-mode quality general-review
+/task-mode quality acceptance-review
+/task-mode review <turn>
+/task-mode reviews
+```
+
+The old single-mode aliases remain accepted during the `0.2.x` release line: `normal`, `first-principles`, and `adversarial-review`. They reset the working state to Execute and map to the table above.
 
 ## Configuration
 
-The bundle selects the normal platform shell automatically. Override it only when the target profile registers that tool:
+The bundle selects the normal platform shell automatically. Override it only when the target profile registers that exact tool:
 
 ```yaml
 - id: dsh-task-modes
@@ -74,15 +107,11 @@ The bundle selects the normal platform shell automatically. Override it only whe
     shellTool: bash
 ```
 
-Adversarial review requires the fork/subagent capability in the selected profile.
+Quality review requires DSH's fork/subagent capability. Plan mode requires DSH's official `planMode` service and tool registry.
 
 ## Compatibility
 
-Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, and forked subagents. npm is the recommended stable distribution channel; pinned Git revisions remain available for source auditing and development.
-
-## Release
-
-See [v0.1.9](https://github.com/GraySilver/dsh-task-modes/releases/tag/v0.1.9) for the current release.
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, forked subagents, the official Plan mode service, and the DSH tools pipeline. npm is the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
 
 ## Feedback
 

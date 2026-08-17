@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { pathToFileURL } from 'node:url'
@@ -48,7 +48,13 @@ test('mounts reviews beneath their matching completed turn', async () => {
       locale: { register: () => () => {} },
       remote: { commands: { execute: async (sessionId, line) => {
         calls.push([sessionId, line])
-        return { ok: true, value: { result: { kind: 'success', text: '## Verdict\n\nPass' } } }
+        return { ok: true, value: { result: { kind: 'success', text: JSON.stringify({
+          turn: 7,
+          profile: 'acceptance-review',
+          status: 'completed',
+          text: '## Verdict\n\nPass',
+          createdAt: 123,
+        }) } } }
       } } },
       conversationEvents: { register: definition => { definitions.push(definition); return () => {} } },
       slots: {
@@ -61,17 +67,92 @@ test('mounts reviews beneath their matching completed turn', async () => {
     assert.equal(definitions.length, 1)
     assert.deepEqual(registrations.map(item => item.name), [
       'conversation.input.left',
+      'conversation.input.plan',
       'conversation.chat.turnTail',
       'conversation.chat.commandview',
     ])
-    const tail = registrations[1]
+    const tail = registrations[2]
     assert.equal(tail.select({}), true)
     const face = tail.inject('session-1')
-    assert.equal(await face.review(7), '## Verdict\n\nPass')
+    assert.deepEqual(await face.review(7), {
+      turn: 7,
+      profile: 'acceptance-review',
+      status: 'completed',
+      text: '## Verdict\n\nPass',
+      createdAt: 123,
+    })
     assert.deepEqual(calls, [['session-1', '/task-mode-review 7']])
   } finally {
     delete globalThis.window
   }
+})
+
+test('exposes independent working, reasoning, and quality command controls', async () => {
+  let handoff
+  globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
+  try {
+    await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?controls=${Date.now()}`)
+    const plugin = handoff.factory(() => ({}))
+    const calls = []
+    const registrations = []
+    const stateText = 'working: execute\nreasoning: first-principles\nquality: acceptance-review'
+    const ctx = {
+      effect: effect => effect(),
+      locale: { register: () => () => {} },
+      remote: { commands: { execute: async (sessionId, line) => {
+        calls.push([sessionId, line])
+        return { ok: true, value: { result: { kind: 'success', text: stateText } } }
+      } } },
+      conversationEvents: { register: () => () => {} },
+      slots: {
+        inject: (_name, effect) => effect(),
+        register: (options) => { registrations.push(options); return () => {} },
+      },
+    }
+    plugin.apply(ctx)
+
+    const face = registrations[0].inject('session-axes')
+    assert.deepEqual(await face.getState(), { reasoning: 'first-principles', quality: 'acceptance-review' })
+    assert.deepEqual(await face.setWorking('plan'), { reasoning: 'first-principles', quality: 'acceptance-review' })
+    assert.deepEqual(await face.setReasoning('standard'), { reasoning: 'first-principles', quality: 'acceptance-review' })
+    assert.deepEqual(await face.setQuality('general-review'), { reasoning: 'first-principles', quality: 'acceptance-review' })
+    assert.deepEqual(calls, [
+      ['session-axes', '/task-mode'],
+      ['session-axes', '/task-mode working plan'],
+      ['session-axes', '/task-mode reasoning standard'],
+      ['session-axes', '/task-mode quality general-review'],
+    ])
+
+    const artifact = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
+    for (const label of ['Execute', 'Plan', 'Standard', 'First principles', 'Off', 'Adversarial review', 'Acceptance review']) {
+      assert.match(artifact, new RegExp(label))
+    }
+    assert.match(artifact, /selectedIds:/u)
+    assert.doesNotMatch(artifact, /qualityOpen/u)
+    assert.match(artifact, /conversation\.input\.plan/u)
+    assert.match(artifact, /priority: -1/u)
+  } finally {
+    delete globalThis.window
+  }
+})
+
+test('ships migration, Plan enforcement, and both quality profiles', async () => {
+  const artifact = await readFile(new URL('../lib/index.js', import.meta.url), 'utf8')
+  const patch = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
+
+  assert.match(artifact, /name:\s*"graysilver_task_modes",\s*version:\s*1/u)
+  assert.match(artifact, /case "normal":[\s\S]{0,100}reasoning: "standard",[\s\S]{0,50}quality: "off"/u)
+  assert.match(artifact, /case "first-principles":[\s\S]{0,100}reasoning: "first-principles",[\s\S]{0,50}quality: "off"/u)
+  assert.match(artifact, /case "adversarial-review":[\s\S]{0,100}reasoning: "standard",[\s\S]{0,50}quality: "general-review"/u)
+  for (const tool of ['read', 'glob', 'grep', 'read_image']) assert.match(artifact, new RegExp(`"${tool}"`))
+  assert.match(artifact, /PLAN_EXIT_TOOL = "exit_plan_mode"/u)
+  assert.match(artifact, /scope\.on\("tools\/pre-execute"/u)
+  assert.match(artifact, /agentPresets\.serviceFor\(agent, "planMode"\)/u)
+  assert.doesNotMatch(artifact, /\["commands", "systemPrompt", "subagents", "storageDomain", "planMode", "tools"\]/u)
+  assert.match(artifact, /profile === "general-review"/u)
+  assert.match(artifact, /Met, Gap, Unverified, Evidence, and Concrete follow-up/u)
+  assert.match(artifact, /if \(profile === "off"\) return/u)
+  assert.doesNotMatch(patch, /dsh-plan-mode/u)
 })
 
 test('projects a verified first-principles request header into Trajectory', async () => {
