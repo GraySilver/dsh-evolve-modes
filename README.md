@@ -15,17 +15,17 @@
 输入区会显示当前组合，例如：
 
 ```text
-Execute · Standard · Off · Evolution Propose
+正常 · 标准 · 关 · 进化 开
 ```
 
 点开控制项即可分别调整四个维度：
 
 | 维度 | 选项 | 作用 |
 | --- | --- | --- |
-| **工作状态** | 执行 · 计划 | 立即完成任务，或进入官方 DSH 计划工作流。 |
+| **工作状态** | 正常 · 计划 | 立即完成任务，或进入官方 DSH 计划工作流。 |
 | **思考策略** | 标准 · 第一性原理 | 正常回答，或显式梳理目标、事实、假设、约束、推导和验证。 |
-| **质量门禁** | 关闭 · 对抗性审查 · 验收审查 | 不增加审查，独立寻找风险，或对照任务和已批准计划验收结果。 |
-| **自进化** | 关闭 · 提议 | 不分析长期规则，或在完成若干次回复后生成待人工审阅的规则提议。 |
+| **质量门禁** | 关 · 对抗性审查 · 验收审查 | 不增加审查，独立寻找风险，或对照任务和已批准计划验收结果。 |
+| **自进化** | 关 · 开 | 不分析长期规则，或在完成若干次回复后生成待人工审阅的规则提议。 |
 
 这不是互斥的“人格模式”，而是每个任务都可以重新组合的一组工作决策。
 
@@ -42,6 +42,8 @@ Execute · Standard · Off · Evolution Propose
 | 待审阅提议上限 | `100` | 超过上限时不会继续堆积提议，可在全局设置中调整为 `1..1000`。 |
 | 学习范围 | 已开启自进化的源会话 | 不再配置项目范围；当前会话打开自进化，就会纳入学习范围。 |
 | 规则作用域 | 全局 | 应用后的规则跨会话生效，不绑定项目目录。 |
+
+![自进化模式全局设置](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/evolve-modes-review.png)
 
 ### 学习数据如何被整理
 
@@ -90,11 +92,11 @@ Execute · Standard · Off · Evolution Propose
 
 | 你需要…… | 推荐组合 | 适合原因 |
 | --- | --- | --- |
-| 快速完成日常工作 | `Execute · Standard · Off` | 保持执行节奏，不增加额外流程。 |
-| 做高影响决策 | `Plan · First principles · Off` | 先研究并暴露假设，再进入 DSH 的计划审批流程。 |
-| 有把握地交付实现 | `Execute · Standard · Acceptance review` | 完成实现后，由独立审查 Agent 对照任务目标检查结果。 |
-| 挑战高风险答案 | `Execute · First principles · Adversarial review` | 显式展开推理，再寻找遗漏、反例、回归和缺少依据的结论。 |
-| 沉淀稳定的个人偏好 | `Execute · Standard · Off · Evolution Propose` | 按默认每 3 次回复一批识别长期规则，只生成提议，不自动启用。 |
+| 快速完成日常工作 | `正常 · 标准 · 关` | 保持执行节奏，不增加额外流程。 |
+| 做高影响决策 | `计划 · 第一性原理 · 关` | 先研究并暴露假设，再进入 DSH 的计划审批流程。 |
+| 有把握地交付实现 | `正常 · 标准 · 验收审查` | 完成实现后，由独立审查 Agent 对照任务目标检查结果。 |
+| 挑战高风险答案 | `正常 · 第一性原理 · 对抗性审查` | 显式展开推理，再寻找遗漏、反例、回归和缺少依据的结论。 |
+| 沉淀稳定的个人偏好 | `正常 · 标准 · 关 · 进化 开` | 按默认每 3 次回复一批识别长期规则，只生成提议，不自动启用。 |
 
 ## 一条命令安装
 
@@ -176,8 +178,6 @@ bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时�
 质量审查要求 DSH 的 fork/subagent capability；自进化分析要求 DSH 的直接 `llm` service；计划模式要求官方 `planMode` service 和工具注册表。插件需要支持 Web plugin loader、client UI slots、storage domain、Trajectory 和上述 DSH 服务的 DeepSeek Harness 版本。
 
 插件状态保存在自己的 storage domain，可跨服务重启和会话重新加载继续使用。`0.3.0` 会自动迁移旧版本的会话设置、提议、已批准规则、备份和学习记录，不会覆盖已经存在的新名称数据。
-
-![进化模式审查面板](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/evolve-modes-review.png)
 
 ## 反馈
 
