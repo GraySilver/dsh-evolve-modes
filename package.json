@@ -1,6 +1,6 @@
 {
   "name": "@graysilver/dsh-evolve-modes",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Composable working, reasoning, quality, and human-reviewed self-evolution controls for DeepSeek Harness Web.",
   "license": "MIT",
   "homepage": "https://github.com/GraySilver/dsh-evolve-modes#readme",
@@ -33,7 +33,7 @@
     "./remote": { "types": "./lib/types/remote.d.ts", "default": "./lib/typert.remote-client.js" },
     "./package.json": "./package.json"
   },
-  "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.en.md", "README.zh.md", "LICENSE"],
+  "files": ["lib", "src", "assets", "cordis.patch.yml", "README.md", "README.en.md", "LICENSE"],
   "scripts": {
     "build": "tsdown && node scripts/normalize-artifacts.mjs && node scripts/copy-types.mjs && node scripts/verify-artifacts.mjs",
     "test": "vitest run tests/*.test.ts && node --test tests/*.test.mjs",

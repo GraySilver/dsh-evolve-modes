@@ -44,7 +44,7 @@ This is not a collection of mutually exclusive modes. It is a small operating mo
 Install the GitHub release tarball into the DeepSeek Harness Web profile:
 
 ```sh
-dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
+dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.1/graysilver-dsh-evolve-modes-0.3.1.tgz
 ```
 
 Restart the Web profile. The self-evolution mode control appears beside the composer tools.
