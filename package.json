@@ -1,15 +1,15 @@
 {
-  "name": "@graysilver/dsh-task-modes",
+  "name": "@graysilver/dsh-evolve-modes",
   "version": "0.3.0",
   "description": "Composable working, reasoning, quality, and human-reviewed self-evolution controls for DeepSeek Harness Web.",
   "license": "MIT",
-  "homepage": "https://github.com/GraySilver/dsh-task-modes#readme",
+  "homepage": "https://github.com/GraySilver/dsh-evolve-modes#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GraySilver/dsh-task-modes.git"
+    "url": "git+https://github.com/GraySilver/dsh-evolve-modes.git"
   },
   "bugs": {
-    "url": "https://github.com/GraySilver/dsh-task-modes/issues"
+    "url": "https://github.com/GraySilver/dsh-evolve-modes/issues"
   },
   "keywords": [
     "deepseek-harness",

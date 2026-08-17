@@ -1,7 +1,7 @@
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Context } from '@deepseek-ai/cordis'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
-import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
+import type { DomainGlobal, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it } from 'vitest'
 import { learnFromTurns, runEvolutionLearningCall } from '../src/evolution/learning.ts'
 import { evolutionMessages } from '../src/evolution/messages.ts'
@@ -13,9 +13,10 @@ import {
 } from '../src/evolution/prompt.ts'
 import type { EvolutionLearningInput } from '../src/evolution/prompt.ts'
 import type { EvolutionStore } from '../src/evolution/store.ts'
-import { EMPTY_EVOLUTION_STATE } from '../src/evolution/store.ts'
-import { normalizeRecord, recordFor } from '../src/storage.ts'
-import type { StoredTaskModeRecord } from '../src/storage.ts'
+import { EMPTY_EVOLUTION_STATE, migrateRenamedEvolutionState } from '../src/evolution/store.ts'
+import { migrateRenamedModeRecords, normalizeRecord, recordFor } from '../src/storage.ts'
+import type { StoredEvolveModeRecord } from '../src/storage.ts'
+import type { EvolutionState } from '../src/types.ts'
 
 interface FakeEvent {
   readonly type: string
@@ -57,14 +58,10 @@ function textResponse(text: string): StreamChunk[] {
   ]
 }
 
-function fakeRecords(pendingEvolutionTurns: readonly number[]): KvTable<string, StoredTaskModeRecord> {
-  const values = new Map<string, StoredTaskModeRecord>([[
-    'session-a',
-    {
-      reasoning: 'standard', quality: 'off', evolution: 'propose',
-      pendingEvolutionTurns: [...pendingEvolutionTurns], updatedAt: 0, reviews: [],
-    },
-  ]])
+function recordTable(
+  entries: readonly (readonly [string, StoredEvolveModeRecord])[],
+): KvTable<string, StoredEvolveModeRecord> {
+  const values = new Map<string, StoredEvolveModeRecord>(entries)
   return {
     get: key => values.get(key),
     entries: () => values.entries(),
@@ -72,7 +69,17 @@ function fakeRecords(pendingEvolutionTurns: readonly number[]): KvTable<string, 
     get size() { return values.size },
     put: async (key, value) => { values.set(key, value) },
     delete: async key => values.delete(key),
-  } as KvTable<string, StoredTaskModeRecord>
+  } as KvTable<string, StoredEvolveModeRecord>
+}
+
+function fakeRecords(pendingEvolutionTurns: readonly number[]): KvTable<string, StoredEvolveModeRecord> {
+  return recordTable([[
+    'session-a',
+    {
+      reasoning: 'standard', quality: 'off', evolution: 'propose',
+      pendingEvolutionTurns: [...pendingEvolutionTurns], updatedAt: 0, reviews: [],
+    },
+  ]])
 }
 
 function turnEvents(turn: number, user: string, assistants: readonly string[] = []): FakeEvent[] {
@@ -148,6 +155,44 @@ describe('self-evolution defaults', () => {
       reasoning: 'standard', quality: 'off', evolution: 'off',
       pendingEvolutionTurns: [], updatedAt: 0, reviews: [],
     })).toMatchObject({ evolution: 'off' })
+  })
+
+  it('copies renamed session records without overwriting new-domain choices', async () => {
+    const legacy = fakeRecords([1])
+    const target = recordTable([])
+    await migrateRenamedModeRecords(target, legacy)
+    expect(target.get('session-a')).toMatchObject({ evolution: 'propose', pendingEvolutionTurns: [1] })
+
+    await target.put('session-a', {
+      reasoning: 'first-principles', quality: 'off', evolution: 'off',
+      pendingEvolutionTurns: [], updatedAt: 1, reviews: [],
+    })
+    await migrateRenamedModeRecords(target, legacy)
+    expect(target.get('session-a')).toMatchObject({ reasoning: 'first-principles', evolution: 'off' })
+  })
+
+  it('copies renamed global evolution state only into a pristine new domain', async () => {
+    let targetState: EvolutionState = structuredClone(EMPTY_EVOLUTION_STATE)
+    const legacyState: EvolutionState = {
+      ...structuredClone(EMPTY_EVOLUTION_STATE),
+      revision: 2,
+      updatedAt: 10,
+      config: { learningBatchSize: 7, maxPendingProposals: 42 },
+    }
+    const target = {
+      get: () => targetState,
+      set: async (value: EvolutionState) => { targetState = value },
+    } as unknown as DomainGlobal<EvolutionState>
+    const legacy = {
+      get: () => legacyState,
+    } as unknown as DomainGlobal<EvolutionState>
+
+    await migrateRenamedEvolutionState(target, legacy)
+    expect(targetState).toMatchObject({ revision: 2, config: { learningBatchSize: 7 } })
+
+    targetState = { ...targetState, revision: 3, config: { learningBatchSize: 5, maxPendingProposals: 10 } }
+    await migrateRenamedEvolutionState(target, legacy)
+    expect(targetState).toMatchObject({ revision: 3, config: { learningBatchSize: 5 } })
   })
 })
 
@@ -263,7 +308,7 @@ describe('isolated self-evolution LLM call', () => {
     expect(request.messages).toHaveLength(1)
     expect(request.messages[0]).toMatchObject({
       role: 'user',
-      source: { kind: 'plugin', plugin: 'dsh-task-modes:evolution-learning' },
+      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution-learning' },
       content: [{ type: 'text', text: '{"mode":"analyze","input":{"messages":[]}}' }],
     })
     expect(JSON.stringify(request)).not.toContain('Inherited AGENTS.md')

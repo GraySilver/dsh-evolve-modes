@@ -1,14 +1,14 @@
-# dsh-task-modes
+# dsh-evolve-modes
 
 > Make every agent turn intentional.
 
-**dsh-task-modes** is an independent Web plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns one compact composer control into a deliberate workflow: choose how the agent should work, how it should reason, how rigorously its result should be checked, and whether completed work may produce reviewable long-term instructions.
+**dsh-evolve-modes** is an independent Web plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns one compact composer control into a deliberate workflow: choose how the agent should work, how it should reason, how rigorously its result should be checked, and whether completed work may produce reviewable long-term instructions.
 
 No fork of DeepSeek Harness. No duplicate agent loop. Install the plugin, choose a combination, and keep that decision visible in every session.
 
 [中文文档](README.md)
 
-![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
+![dsh-evolve-modes](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/social-preview.png)
 
 ## One Control, Four Decisions
 
@@ -41,16 +41,10 @@ This is not a collection of mutually exclusive modes. It is a small operating mo
 
 ## Install in One Command
 
-Install the published npm release into the DeepSeek Harness Web profile:
+Install the GitHub release tarball into the DeepSeek Harness Web profile:
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
-```
-
-Or, when `dsh` is already installed:
-
-```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
+dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
 ```
 
 Restart the Web profile. The self-evolution mode control appears beside the composer tools.
@@ -58,7 +52,7 @@ Restart the Web profile. The self-evolution mode control appears beside the comp
 For source auditing or development, install a pinned Git revision instead:
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#<trusted-commit>
+dsh plugin --profile web add github:GraySilver/dsh-evolve-modes#<trusted-commit>
 ```
 
 Git-hosted plugins execute install-time code, so install only revisions you trust.
@@ -72,9 +66,9 @@ Git-hosted plugins execute install-time code, so install only revisions you trus
 - **No hidden rewriting.** Reviews identify evidence, gaps, and concrete follow-up actions, but never silently alter, retry, or fix the parent answer.
 - **Propose before activation.** The learning agent may only create evidence-backed proposals. A rule reaches the system prompt only after human approval.
 - **A plugin-owned Settings page.** The top-level Self-evolution mode page manages global learning thresholds, pending proposals, rules, backups, and learning runs.
-- **Plugin-first distribution.** Install through npm, audit a pinned Git revision when needed, and leave DeepSeek Harness core untouched.
+- **Plugin-first distribution.** Install the GitHub release tarball, audit a pinned Git revision when needed, and leave DeepSeek Harness core untouched.
 
-![Task-mode review panel](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
+![Evolve-mode review panel](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/evolve-modes-review.png)
 
 ## Quality Gates That Explain Themselves
 
@@ -104,7 +98,7 @@ Each learning request uses one dedicated persona/system prompt and receives the 
 
 Automatic learning never changes future behavior directly. Every add, update, or delete first becomes a pending proposal and requires explicit user approval. Proposal evidence must be copied exactly from user messages. Assistant inference, temporary task details, one-off implementation results, silence, and lack of repetition are not sufficient evidence for a rule or deletion.
 
-All approved rules are global. The plugin injects them into a marked `<dsh-task-modes-learned-instructions>` system-prompt section and projects the exact section into Trajectory. The Settings page also supports manual edits, apply or dismiss actions, failed-run inspection, and restoration from backups created before each mutation.
+All approved rules are global. The plugin injects them into a marked `<dsh-evolve-modes-learned-instructions>` system-prompt section and projects the exact section into Trajectory. The Settings page also supports manual edits, apply or dismiss actions, failed-run inspection, and restoration from backups created before each mutation.
 
 All self-evolution data stays in plugin-owned durable storage. The plugin never writes `AGENTS.md`, `CLAUDE.md`, or project files.
 
@@ -130,7 +124,7 @@ Quality review adds one model call and corresponding latency per completed paren
 
 ## Persistence and Commands
 
-The bundle stores session controls and reviews in `graysilver_task_modes`, and stores cross-session proposals, approved rules, backups, and learning runs in `graysilver_task_modes_evolution`. Working state is not duplicated: official Plan mode folds it from the session log. Plugin state survives service restarts and session reloads without adding custom DSH session event types.
+The bundle stores session controls and reviews in `graysilver_dsh_evolve_modes`, and stores cross-session proposals, approved rules, backups, and learning runs in `graysilver_dsh_evolve_modes_evolution`. On the first start under the new identity, existing data is copied from the former domains. Working state is not duplicated: official Plan mode folds it from the session log. Plugin state survives service restarts and session reloads without adding custom DSH session event types.
 
 Version `0.3.0` fills self-evolution defaults into `0.2.0` records and continues to migrate earlier single-mode records:
 
@@ -143,20 +137,20 @@ Version `0.3.0` fills self-evolution defaults into `0.2.0` records and continues
 Use these commands in the Web composer or through the command API:
 
 ```text
-/task-mode
-/task-mode working execute
-/task-mode working plan
-/task-mode reasoning standard
-/task-mode reasoning first-principles
-/task-mode quality off
-/task-mode quality general-review
-/task-mode quality acceptance-review
-/task-mode evolution off
-/task-mode evolution propose
-/task-mode evolution batch-size <1..100>
-/task-mode evolution max-pending-proposals <1..1000>
-/task-mode review <turn>
-/task-mode reviews
+/evolve-mode
+/evolve-mode working execute
+/evolve-mode working plan
+/evolve-mode reasoning standard
+/evolve-mode reasoning first-principles
+/evolve-mode quality off
+/evolve-mode quality general-review
+/evolve-mode quality acceptance-review
+/evolve-mode evolution off
+/evolve-mode evolution propose
+/evolve-mode evolution batch-size <1..100>
+/evolve-mode evolution max-pending-proposals <1..1000>
+/evolve-mode review <turn>
+/evolve-mode reviews
 ```
 
 The old single-mode aliases remain migratable: `normal`, `first-principles`, and `adversarial-review`. They reset the working state to Execute, map to the table above, and preserve the current self-evolution setting.
@@ -166,7 +160,7 @@ The old single-mode aliases remain migratable: `normal`, `first-principles`, and
 The bundle selects the normal platform shell automatically. Override it only when the target profile registers that exact tool:
 
 ```yaml
-- id: dsh-task-modes
+- id: dsh-evolve-modes
   config:
     shellTool: bash
 ```
@@ -175,11 +169,11 @@ Quality review requires DSH's fork/subagent capability; self-evolution analysis 
 
 ## Compatibility
 
-Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, forked subagents for quality review, the official Plan mode service, and the DSH tools pipeline. npm is the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, forked subagents for quality review, the official Plan mode service, and the DSH tools pipeline. GitHub release tarballs are the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
 
 ## Feedback
 
-Please use [GitHub Issues](https://github.com/GraySilver/dsh-task-modes/issues) for bugs and feature requests. Showcase and integration feedback is welcome in the [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+Please use [GitHub Issues](https://github.com/GraySilver/dsh-evolve-modes/issues) for bugs and feature requests. Showcase and integration feedback is welcome in the [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 
 ## License
 

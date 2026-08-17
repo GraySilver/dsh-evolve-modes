@@ -10,8 +10,13 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import { learnFromTurns } from './evolution/learning.ts'
 import { compileLearnedInstructions } from './evolution/prompt.ts'
-import { TaskModesEvolutionService } from './evolution/service.ts'
-import { evolutionDomain, EvolutionStore } from './evolution/store.ts'
+import { DshEvolveModesService } from './evolution/service.ts'
+import {
+  evolutionDomain,
+  EvolutionStore,
+  legacyEvolutionDomain,
+  migrateRenamedEvolutionState,
+} from './evolution/store.ts'
 import { FIRST_PRINCIPLES } from './prompt.ts'
 import {
   addReview,
@@ -22,16 +27,18 @@ import {
   setLegacyMode,
   setQuality,
   setReasoning,
-  taskModesDomain,
+  evolveModesDomain,
+  legacyEvolveModesDomain,
+  migrateRenamedModeRecords,
 } from './storage.ts'
 import type {
   EvolutionMode,
   QualityGate,
   ReasoningMode,
   ReviewProfile,
-  TaskMode,
-  TaskModeRecord,
-  TaskModeReview,
+  EvolveModeLegacyAlias,
+  EvolveModeRecord,
+  EvolveModeReview,
 } from './types.ts'
 
 const READ_ONLY_REVIEW_TOOLS = ['read', 'glob', 'grep', 'read_image'] as const
@@ -120,10 +127,10 @@ async function reviewTurn(
   signal: AbortSignal,
   shellTool: Config['shellTool'],
   profile: ReviewProfile,
-): Promise<TaskModeReview | undefined> {
+): Promise<EvolveModeReview | undefined> {
   const input = currentTurnInput(agent, turn)
   if (input === undefined) return undefined
-  const unavailable = (text: string): TaskModeReview => ({ turn, profile, status: 'unavailable', text, createdAt: Date.now() })
+  const unavailable = (text: string): EvolveModeReview => ({ turn, profile, status: 'unavailable', text, createdAt: Date.now() })
   if (scope.subagents.getProvider('fork') === undefined) return unavailable('The fork subagent provider is unavailable.')
   try {
     const run = await scope.subagents.start('fork', {
@@ -159,23 +166,29 @@ function isEvolutionMode(value: string): value is EvolutionMode {
   return value === 'off' || value === 'propose'
 }
 
-function isLegacyMode(value: string): value is TaskMode {
+function isLegacyMode(value: string): value is EvolveModeLegacyAlias {
   return value === 'normal' || value === 'first-principles' || value === 'adversarial-review'
 }
 
 /** Mount independent task controls, quality reviews, and human-approved self-evolution. */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   await ctx.inject(['agentPresets', 'commands', 'llm', 'systemPrompt', 'subagents', 'storageDomain', 'tools'], async (scope: Context) => {
-    const domain = await scope.storageDomain.open(taskModesDomain)
+    const domain = await scope.storageDomain.open(evolveModesDomain)
     const records = domain.table('sessions')
+    const legacyDomain = await scope.storageDomain.open(legacyEvolveModesDomain)
+    await migrateRenamedModeRecords(records, legacyDomain.table('sessions'))
     await migrateLegacyRecords(records)
-    scope.effect(() => () => domain.close(), 'dsh-task-modes: storage close')
+    scope.effect(() => () => domain.close(), 'dsh-evolve-modes: storage close')
+    scope.effect(() => () => legacyDomain.close(), 'dsh-evolve-modes: legacy storage close')
     const evolutionStateDomain = await scope.storageDomain.open(evolutionDomain)
+    const legacyEvolutionStateDomain = await scope.storageDomain.open(legacyEvolutionDomain)
+    await migrateRenamedEvolutionState(evolutionStateDomain.global, legacyEvolutionStateDomain.global)
     const evolutionStore = new EvolutionStore(evolutionStateDomain.global)
-    scope.effect(() => () => evolutionStateDomain.close(), 'dsh-task-modes: evolution storage close')
-    new TaskModesEvolutionService(scope, evolutionStore)
+    scope.effect(() => () => evolutionStateDomain.close(), 'dsh-evolve-modes: evolution storage close')
+    scope.effect(() => () => legacyEvolutionStateDomain.close(), 'dsh-evolve-modes: legacy evolution storage close')
+    new DshEvolveModesService(scope, evolutionStore)
 
-    const stateOf = (agent: Agent): TaskModeRecord => recordFor(records, String(agent.session.id))
+    const stateOf = (agent: Agent): EvolveModeRecord => recordFor(records, String(agent.session.id))
     const planModeFor = (agent: Agent): Context['planMode'] | undefined => {
       return scope.agentPresets.serviceFor(agent, 'planMode')
     }
@@ -198,18 +211,18 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     }
 
     scope.effect(() => scope.systemPrompt.section({
-      name: 'task-mode:first-principles',
+      name: 'evolve-mode:first-principles',
       order: 80,
       text: ({ agent }) => agent !== undefined && stateOf(agent).reasoning === 'first-principles' ? FIRST_PRINCIPLES : '',
-    }), 'dsh-task-modes: first-principles prompt')
+    }), 'dsh-evolve-modes: first-principles prompt')
 
     scope.effect(() => scope.systemPrompt.section({
-      name: 'task-mode:evolution',
+      name: 'evolve-mode:evolution',
       order: 81,
       text: ({ agent }) => agent === undefined
         ? ''
         : compileLearnedInstructions(evolutionStore.state()),
-    }), 'dsh-task-modes: learned instructions prompt')
+    }), 'dsh-evolve-modes: learned instructions prompt')
 
     scope.effect(() => scope.on('tools/pre-execute', async (execution, next) => {
       if (execution.agent === undefined || !planModeFor(execution.agent)?.get(execution.agent).active) return next()
@@ -218,10 +231,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         kind: 'deny',
         reason: `Plan mode allows only ${planAllowedTools(config.shellTool).join(', ')}. Switch to Execute mode before running ${execution.name}.`,
       }
-    }), 'dsh-task-modes: plan tool policy')
+    }), 'dsh-evolve-modes: plan tool policy')
 
     scope.effect(() => scope.commands.register({
-      name: 'task-mode',
+      name: 'evolve-mode',
       description: 'Select independent working, reasoning, quality, and self-evolution task controls.',
       recordInput: false,
       handler: async ({ agent, rawInput }) => {
@@ -232,7 +245,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const reviewMatch = /^review\s+(\d+)$/u.exec(input)
         if (reviewMatch !== null) {
           const turn = Number(reviewMatch[1])
-          if (!Number.isSafeInteger(turn) || turn < 0) return { kind: 'error', text: 'task-mode review expects a non-negative integer turn' }
+          if (!Number.isSafeInteger(turn) || turn < 0) return { kind: 'error', text: 'evolve-mode review expects a non-negative integer turn' }
           return { kind: 'success', text: current.reviews.find(review => review.turn === turn)?.text ?? '' }
         }
         if (input === 'reviews') {
@@ -252,7 +265,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         if (batchSizeMatch !== null) {
           const learningBatchSize = Number(batchSizeMatch[1])
           if (!Number.isSafeInteger(learningBatchSize) || learningBatchSize < 1 || learningBatchSize > 100) {
-            return { kind: 'error', text: 'task-mode evolution batch-size expects an integer from 1 to 100' }
+            return { kind: 'error', text: 'evolve-mode evolution batch-size expects an integer from 1 to 100' }
           }
           await evolutionStore.setConfig({ ...evolutionStore.config(), learningBatchSize })
           return { kind: 'success', text: stateText(agent) }
@@ -262,14 +275,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         if (proposalLimitMatch !== null) {
           const maxPendingProposals = Number(proposalLimitMatch[1])
           if (!Number.isSafeInteger(maxPendingProposals) || maxPendingProposals < 1 || maxPendingProposals > 1000) {
-            return { kind: 'error', text: 'task-mode evolution max-pending-proposals expects an integer from 1 to 1000' }
+            return { kind: 'error', text: 'evolve-mode evolution max-pending-proposals expects an integer from 1 to 1000' }
           }
           await evolutionStore.setConfig({ ...evolutionStore.config(), maxPendingProposals })
           return { kind: 'success', text: stateText(agent) }
         }
 
         const [axis, value, extra] = input.split(/\s+/u)
-        if (extra !== undefined) return { kind: 'error', text: 'task-mode expects one axis and one value' }
+        if (extra !== undefined) return { kind: 'error', text: 'evolve-mode expects one axis and one value' }
         if (axis === 'working' && (value === 'execute' || value === 'plan')) {
           const planMode = planModeFor(agent)
           if (planMode === undefined) {
@@ -295,22 +308,22 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }
         return {
           kind: 'error',
-          text: 'task-mode expects working <execute|plan>, reasoning <standard|first-principles>, quality <off|general-review|acceptance-review>, evolution <off|propose>, evolution batch-size <1..100>, evolution max-pending-proposals <1..1000>, review <turn>, reviews, or a legacy mode alias',
+          text: 'evolve-mode expects working <execute|plan>, reasoning <standard|first-principles>, quality <off|general-review|acceptance-review>, evolution <off|propose>, evolution batch-size <1..100>, evolution max-pending-proposals <1..1000>, review <turn>, reviews, or a legacy mode alias',
         }
       },
-    }), 'dsh-task-modes: task-mode command')
+    }), 'dsh-evolve-modes: evolve-mode command')
 
     scope.effect(() => scope.commands.register({
-      name: 'task-mode-review',
-      description: 'Internal Web reader for one task-mode review record.',
+      name: 'evolve-mode-review',
+      description: 'Internal Web reader for one evolve-mode review record.',
       recordInput: false,
       handler: async ({ agent, rawInput }) => {
         const turn = Number(rawInput.trim())
-        if (!Number.isSafeInteger(turn) || turn < 0) return { kind: 'error', text: 'task-mode-review expects a non-negative integer turn' }
+        if (!Number.isSafeInteger(turn) || turn < 0) return { kind: 'error', text: 'evolve-mode-review expects a non-negative integer turn' }
         const review = stateOf(agent).reviews.find(item => item.turn === turn)
         return { kind: 'success', text: review === undefined ? '' : JSON.stringify(review) }
       },
-    }), 'dsh-task-modes: task-mode-review command')
+    }), 'dsh-evolve-modes: evolve-mode-review command')
 
     scope.on('agent/turn-stopping', async ({ agent, turn, signal }) => {
       const state = stateOf(agent)
@@ -354,7 +367,7 @@ export type {
   QualityGate,
   ReasoningMode,
   ReviewProfile,
-  TaskMode,
-  TaskModeRecord,
-  TaskModeReview,
+  EvolveModeLegacyAlias,
+  EvolveModeRecord,
+  EvolveModeReview,
 } from './types.ts'

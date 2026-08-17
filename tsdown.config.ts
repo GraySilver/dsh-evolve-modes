@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-const CLIENT_ID = '@graysilver/dsh-task-modes'
+const CLIENT_ID = '@graysilver/dsh-evolve-modes'
 
 export default defineConfig([
   {

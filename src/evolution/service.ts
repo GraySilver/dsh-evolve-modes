@@ -11,9 +11,9 @@ import type {
 import type { EvolutionStore } from './store.ts'
 
 /** Host Remote service for the plugin-owned self-evolution dashboard. */
-export class TaskModesEvolutionService extends TypertRemoteService {
+export class DshEvolveModesService extends TypertRemoteService {
   constructor(ctx: Context, private readonly store: EvolutionStore) {
-    super(ctx, 'taskModesEvolution')
+    super(ctx, 'evolveModes')
   }
 
   /** Read the global self-evolution dashboard. */

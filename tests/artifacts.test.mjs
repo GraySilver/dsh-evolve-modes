@@ -25,7 +25,7 @@ test('registers the browser entry through the DSH module loader', async () => {
   globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
   try {
     await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?test=${Date.now()}`)
-    assert.equal(handoff?.id, '@graysilver/dsh-task-modes')
+    assert.equal(handoff?.id, '@graysilver/dsh-evolve-modes')
     assert.equal(typeof handoff?.factory, 'function')
     const exports = handoff.factory(() => ({}))
     assert.deepEqual(exports.inject, ['slots', 'locale', 'remote', 'remote.commands', 'conversationEvents'])
@@ -84,7 +84,7 @@ test('mounts reviews beneath their matching completed turn', async () => {
       text: '## Verdict\n\nPass',
       createdAt: 123,
     })
-    assert.deepEqual(calls, [['session-1', '/task-mode-review 7']])
+    assert.deepEqual(calls, [['session-1', '/evolve-mode-review 7']])
   } finally {
     delete globalThis.window
   }
@@ -131,12 +131,12 @@ test('exposes independent working, reasoning, quality, and evolution command con
     assert.deepEqual(await face.setEvolution('off'), expected)
     assert.deepEqual(await face.setBatchSize(5), expected)
     assert.deepEqual(calls, [
-      ['session-axes', '/task-mode'],
-      ['session-axes', '/task-mode working plan'],
-      ['session-axes', '/task-mode reasoning standard'],
-      ['session-axes', '/task-mode quality general-review'],
-      ['session-axes', '/task-mode evolution off'],
-      ['session-axes', '/task-mode evolution batch-size 5'],
+      ['session-axes', '/evolve-mode'],
+      ['session-axes', '/evolve-mode working plan'],
+      ['session-axes', '/evolve-mode reasoning standard'],
+      ['session-axes', '/evolve-mode quality general-review'],
+      ['session-axes', '/evolve-mode evolution off'],
+      ['session-axes', '/evolve-mode evolution batch-size 5'],
     ])
 
     const artifact = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
@@ -165,7 +165,7 @@ test('ships migration, Plan enforcement, and both quality profiles', async () =>
   const artifact = await readFile(new URL('../lib/index.js', import.meta.url), 'utf8')
   const patch = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
 
-  assert.match(artifact, /name:\s*"graysilver_task_modes",\s*version:\s*1/u)
+  assert.match(artifact, /name:\s*"graysilver_dsh_evolve_modes",\s*version:\s*1/u)
   assert.match(artifact, /case "normal":[\s\S]{0,100}reasoning: "standard",[\s\S]{0,50}quality: "off"/u)
   assert.match(artifact, /case "first-principles":[\s\S]{0,100}reasoning: "first-principles",[\s\S]{0,50}quality: "off"/u)
   assert.match(artifact, /case "adversarial-review":[\s\S]{0,100}reasoning: "standard",[\s\S]{0,50}quality: "general-review"/u)
@@ -176,10 +176,10 @@ test('ships migration, Plan enforcement, and both quality profiles', async () =>
   assert.doesNotMatch(artifact, /\["commands", "systemPrompt", "subagents", "storageDomain", "planMode", "tools"\]/u)
   assert.match(artifact, /profile === "general-review"/u)
   assert.match(artifact, /Met, Gap, Unverified, Evidence, and Concrete follow-up/u)
-  assert.match(artifact, /name:\s*"graysilver_task_modes_evolution",\s*version:\s*1/u)
-  assert.match(artifact, /name:\s*"task-mode:evolution"/u)
+  assert.match(artifact, /name:\s*"graysilver_dsh_evolve_modes_evolution",\s*version:\s*1/u)
+  assert.match(artifact, /name:\s*"evolve-mode:evolution"/u)
   assert.match(artifact, /evolution\\s\+batch-size/u)
-  assert.match(artifact, /dsh-task-modes:evolution-learning/u)
+  assert.match(artifact, /dsh-evolve-modes:evolution-learning/u)
   assert.match(artifact, /validationError/u)
   assert.match(artifact, /mode:\s*"repair"/u)
   assert.match(artifact, /category must be exactly identity, preference, or work_rule/u)
@@ -205,7 +205,7 @@ test('projects a verified first-principles request header into Trajectory', asyn
       slots: { inject: () => {}, register: () => () => {} },
     }
     plugin.apply(ctx)
-    const definition = definitions.find(value => value.kind === 'task-mode-first-principles-injection')
+    const definition = definitions.find(value => value.kind === 'evolve-mode-first-principles-injection')
     assert.ok(definition)
 
     const prompt = 'For this task, reason from first principles. State the objective and success criteria, separate verified facts from assumptions, identify hard constraints, derive the solution from those facts, and describe how you will verify the result. Do not treat conventions or guesses as requirements.'
@@ -235,9 +235,9 @@ test('projects a verified first-principles request header into Trajectory', asyn
     const match = { event, role: 'start', location }
     const state = definition.start({ matches: [match] }, match, {})
     assert.deepEqual(state.content, [{ type: 'text', text: prompt }])
-    assert.deepEqual(state.source, { kind: 'plugin', plugin: 'dsh-task-modes:first-principles' })
+    assert.deepEqual(state.source, { kind: 'plugin', plugin: 'dsh-evolve-modes:first-principles' })
     const node = definition.buildViewNode({
-      key: 'task-mode-first-principles-injection\u000022',
+      key: 'evolve-mode-first-principles-injection\u000022',
       kind: definition.kind,
       id: '22',
       matches: [match],
@@ -269,10 +269,10 @@ test('projects only the approved learned-instruction block into Trajectory', asy
       slots: { inject: () => {}, register: () => () => {} },
     }
     plugin.apply(ctx)
-    const definition = definitions.find(value => value.kind === 'task-mode-learned-instructions-injection')
+    const definition = definitions.find(value => value.kind === 'evolve-mode-learned-instructions-injection')
     assert.ok(definition)
 
-    const learned = '<dsh-task-modes-learned-instructions>\n# Global learned instructions\n\n- Prefer Chinese\n</dsh-task-modes-learned-instructions>'
+    const learned = '<dsh-evolve-modes-learned-instructions>\n# Global learned instructions\n\n- Prefer Chinese\n</dsh-evolve-modes-learned-instructions>'
     const event = {
       type: 'request/header',
       seq: 31,
@@ -291,7 +291,7 @@ test('projects only the approved learned-instruction block into Trajectory', asy
     const match = { event, role: 'start', location }
     const state = definition.start({ matches: [match] }, match, {})
     assert.deepEqual(state.content, [{ type: 'text', text: learned }])
-    assert.deepEqual(state.source, { kind: 'plugin', plugin: 'dsh-task-modes:evolution' })
+    assert.deepEqual(state.source, { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution' })
   } finally {
     delete globalThis.window
   }

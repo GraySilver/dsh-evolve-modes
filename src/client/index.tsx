@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
-import taskModesRemote from '../remote.ts'
+import evolveModesRemote from '../remote.ts'
 import type {
   ClientContext,
   ContextMessageNode,
@@ -43,7 +43,7 @@ import type {
   EvolutionSettingRequest,
   QualityGate,
   ReasoningMode,
-  TaskModeReview,
+  EvolveModeReview,
 } from '../types.ts'
 
 interface ModeState {
@@ -62,12 +62,12 @@ interface ControlFace {
   setQuality(value: QualityGate): Promise<ModeState>
   setEvolution(value: EvolutionMode): Promise<ModeState>
   setBatchSize(value: number): Promise<ModeState>
-  review(turn: number): Promise<TaskModeReview | undefined>
+  review(turn: number): Promise<EvolveModeReview | undefined>
 }
 
-type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'taskModes'> & InjectFace<ControlFace>
+type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'evolveModes'> & InjectFace<ControlFace>
 
-/** Required browser services for task-mode controls and Trajectory projection. */
+/** Required browser services for evolve-mode controls and Trajectory projection. */
 export const inject = ['slots', 'locale', 'remote', 'remote.commands', 'conversationEvents']
 
 const triggerStyle: CSSProperties = {
@@ -122,7 +122,7 @@ function evolutionLabel(evolution: EvolutionMode, t: ControlProps['t']): string 
   return evolution === 'off' ? t('evolutionOff') : t('evolutionPropose')
 }
 
-function TaskModeControl({ getState, setWorking, setReasoning, setQuality, setEvolution, useProjection, t }: ControlProps) {
+function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, setEvolution, useProjection, t }: ControlProps) {
   const [state, setState] = useState<ModeState | undefined>()
   const [menuOpen, setMenuOpen] = useState(false)
   const [busy, setBusy] = useState<'working' | 'reasoning' | 'quality' | 'evolution' | undefined>()
@@ -228,9 +228,9 @@ function TaskModeControl({ getState, setWorking, setReasoning, setQuality, setEv
   </span>
 }
 
-type ReviewProps = PropsRuntime<'conversation.chat.turnTail'> & PropsLocale<'taskModes'> & InjectFace<Pick<ControlFace, 'review'>>
+type ReviewProps = PropsRuntime<'conversation.chat.turnTail'> & PropsLocale<'evolveModes'> & InjectFace<Pick<ControlFace, 'review'>>
 function ReviewTail({ turn, review, t }: ReviewProps) {
-  const [item, setItem] = useState<TaskModeReview | undefined>()
+  const [item, setItem] = useState<EvolveModeReview | undefined>()
   useEffect(() => {
     let live = true
     void review(turn.turn).then(value => { if (live) setItem(value) }).catch(() => { if (live) setItem(undefined) })
@@ -242,10 +242,10 @@ function ReviewTail({ turn, review, t }: ReviewProps) {
   return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconChecklistOutline14 /> {summary}</summary><div style={reviewBodyStyle}><div style={reviewMarkdownStyle}><MarkdownText text={item.text} /></div></div></details>
 }
 
-function TaskModeReviewCommandView() { return null }
+function EvolveModeReviewCommandView() { return null }
 
 /**
- * The unified task-mode button owns Plan interaction, so it takes the
+ * The unified evolve-mode button owns Plan interaction, so it takes the
  * composer's otherwise separate plan-status seat without adding another chip.
  */
 function UnifiedPlanSeat(_props: PropsRuntime<'conversation.input.plan'>) { return null }
@@ -273,7 +273,7 @@ function trajectoryContextNode(
 }
 
 const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
-  kind: 'task-mode-first-principles-injection',
+  kind: 'evolve-mode-first-principles-injection',
   target: 'trajectory',
   match: event => event.type === 'request/header'
     && event.data.header.system?.includes(FIRST_PRINCIPLES) === true
@@ -288,8 +288,8 @@ const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMes
       seq: match.event.seq,
       time: match.event.time,
       content: [{ type: 'text', text: FIRST_PRINCIPLES }],
-      source: { kind: 'plugin', plugin: 'dsh-task-modes:first-principles' },
-      provenance: { role: 'inject', label: 'dsh-task-modes:first-principles' },
+      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:first-principles' },
+      provenance: { role: 'inject', label: 'dsh-evolve-modes:first-principles' },
       form: null,
     }
   },
@@ -299,16 +299,16 @@ const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMes
 
 function learnedInstructionBlock(system: string | undefined): string | undefined {
   if (system === undefined) return undefined
-  const start = system.indexOf('<dsh-task-modes-learned-instructions>')
+  const start = system.indexOf('<dsh-evolve-modes-learned-instructions>')
   if (start < 0) return undefined
-  const endMarker = '</dsh-task-modes-learned-instructions>'
+  const endMarker = '</dsh-evolve-modes-learned-instructions>'
   const end = system.indexOf(endMarker, start)
   if (end < 0) return undefined
   return system.slice(start, end + endMarker.length)
 }
 
 const learnedInstructionsTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
-  kind: 'task-mode-learned-instructions-injection',
+  kind: 'evolve-mode-learned-instructions-injection',
   target: 'trajectory',
   match: event => {
     if (event.type !== 'request/header') return null
@@ -325,8 +325,8 @@ const learnedInstructionsTrajectoryDefinition: ConversationNodeDefinition<Contex
       seq: match.event.seq,
       time: match.event.time,
       content: [{ type: 'text', text }],
-      source: { kind: 'plugin', plugin: 'dsh-task-modes:evolution' },
-      provenance: { role: 'inject', label: 'dsh-task-modes:evolution' },
+      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution' },
+      provenance: { role: 'inject', label: 'dsh-evolve-modes:evolution' },
       form: null,
     }
   },
@@ -452,8 +452,8 @@ const zh: typeof en = {
   unavailable: '不可用',
   error: '模式更新失败',
 }
-type TaskModesKey = keyof typeof en
-declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap { taskModes: TaskModesKey } }
+type EvolveModesKey = keyof typeof en
+declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap { evolveModes: EvolveModesKey } }
 
 function parseState(text: string): ModeState {
   const values = new Map(text.split('\n').map(line => {
@@ -472,22 +472,22 @@ function parseState(text: string): ModeState {
     || (evolution !== 'off' && evolution !== 'propose')
     || !Number.isSafeInteger(learningBatchSize) || learningBatchSize < 1 || learningBatchSize > 100
     || !Number.isSafeInteger(pendingEvolutionTurns) || pendingEvolutionTurns < 0) {
-    throw new Error(`unexpected task-mode state: ${text}`)
+    throw new Error(`unexpected evolve-mode state: ${text}`)
   }
   return { working, reasoning, quality, evolution, learningBatchSize, pendingEvolutionTurns }
 }
 
-function parseReview(text: string): TaskModeReview | undefined {
+function parseReview(text: string): EvolveModeReview | undefined {
   if (text === '') return undefined
   const value: unknown = JSON.parse(text)
-  if (typeof value !== 'object' || value === null) throw new Error('task-mode review response is not an object')
-  const review = value as Partial<TaskModeReview>
+  if (typeof value !== 'object' || value === null) throw new Error('evolve-mode review response is not an object')
+  const review = value as Partial<EvolveModeReview>
   const { turn, profile, status, text: reviewText, createdAt } = review
   if (typeof turn !== 'number' || !Number.isSafeInteger(turn) || turn < 0
     || (profile !== 'general-review' && profile !== 'acceptance-review')
     || (status !== 'completed' && status !== 'unavailable')
     || typeof reviewText !== 'string' || typeof createdAt !== 'number' || !Number.isSafeInteger(createdAt) || createdAt < 0) {
-    throw new Error('task-mode review response is invalid')
+    throw new Error('evolve-mode review response is invalid')
   }
   return { turn, profile, status, text: reviewText, createdAt }
 }
@@ -504,7 +504,7 @@ interface EvolutionSettingsInjected {
   evolution: EvolutionRemoteFace
 }
 
-type SettingsProps = PropsRuntime<'settings.section'> & PropsLocale<'taskModes'> & InjectFace<EvolutionSettingsInjected>
+type SettingsProps = PropsRuntime<'settings.section'> & PropsLocale<'evolveModes'> & InjectFace<EvolutionSettingsInjected>
 
 const settingsSectionStyle: CSSProperties = { boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760, padding: '4px 0 32px' }
 const settingsBandStyle: CSSProperties = { borderTop: '1px solid var(--dsw-alias-line-light)', display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 16 }
@@ -536,7 +536,7 @@ interface RuleDraft {
   readonly content: string
 }
 
-function TaskModesSettings({ close, evolution, t }: SettingsProps) {
+function EvolveModesSettings({ close, evolution, t }: SettingsProps) {
   const [dashboard, setDashboard] = useState<EvolutionDashboard>()
   const [batchText, setBatchText] = useState('3')
   const [proposalLimitText, setProposalLimitText] = useState('100')
@@ -635,10 +635,10 @@ function RuleRow({ setting, t, saving, onEdit, onDelete }: { setting: EvolutionD
   return <div style={settingsItemStyle}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}><span style={settingsMetaStyle}>{categoryLabel(setting.category, t)}</span></div><span style={settingsTextStyle}>{setting.content}</span><div style={settingsActionsStyle}><Button size="sm" variant="ghost" icon={<IconEditOutline16 size={14} />} disabled={saving} onClick={onEdit}>{t('settingsEditRule')}</Button><Button size="sm" variant="ghost" icon={<IconTrashOutline16 size={14} />} disabled={saving} onClick={onDelete}>{t('settingsDelete')}</Button></div></div>
 }
 
-/** Mount composable task-mode controls, persisted review history, and Trajectory evidence. */
+/** Mount composable evolve-mode controls, persisted review history, and Trajectory evidence. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register('taskModes', { en, zh }), 'dsh-task-modes: locale')
-  ctx.effect(() => ctx.remote.$mount(taskModesRemote), 'dsh-task-modes: evolution Remote')
+  ctx.effect(() => ctx.locale.register('evolveModes', { en, zh }), 'dsh-evolve-modes: locale')
+  ctx.effect(() => ctx.remote.$mount(evolveModesRemote), 'dsh-evolve-modes: evolution Remote')
   ctx.conversationEvents.register(firstPrinciplesTrajectoryDefinition)
   ctx.conversationEvents.register(learnedInstructionsTrajectoryDefinition)
   const execute = async (sessionId: string, line: string): Promise<string> => {
@@ -649,33 +649,33 @@ export function apply(ctx: ClientContext): void {
     return response.value.result.text ?? ''
   }
   const faceFor = (sessionId: string): ControlFace => ({
-    getState: async () => parseState(await execute(sessionId, '/task-mode')),
-    setWorking: async value => parseState(await execute(sessionId, `/task-mode working ${value}`)),
-    setReasoning: async value => parseState(await execute(sessionId, `/task-mode reasoning ${value}`)),
-    setQuality: async value => parseState(await execute(sessionId, `/task-mode quality ${value}`)),
-    setEvolution: async value => parseState(await execute(sessionId, `/task-mode evolution ${value}`)),
-    setBatchSize: async value => parseState(await execute(sessionId, `/task-mode evolution batch-size ${value}`)),
-    review: async turn => parseReview(await execute(sessionId, `/task-mode-review ${turn}`)),
+    getState: async () => parseState(await execute(sessionId, '/evolve-mode')),
+    setWorking: async value => parseState(await execute(sessionId, `/evolve-mode working ${value}`)),
+    setReasoning: async value => parseState(await execute(sessionId, `/evolve-mode reasoning ${value}`)),
+    setQuality: async value => parseState(await execute(sessionId, `/evolve-mode quality ${value}`)),
+    setEvolution: async value => parseState(await execute(sessionId, `/evolve-mode evolution ${value}`)),
+    setBatchSize: async value => parseState(await execute(sessionId, `/evolve-mode evolution batch-size ${value}`)),
+    review: async turn => parseReview(await execute(sessionId, `/evolve-mode-review ${turn}`)),
   })
-  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'task-modes', locale: 'taskModes', inject: faceFor }, TaskModeControl))
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'evolve-modes', locale: 'evolveModes', inject: faceFor }, EvolveModeControl))
   ctx.slots.inject('conversation.input.plan', () => ctx.slots.register({ name: 'conversation.input.plan', priority: -1 }, UnifiedPlanSeat))
-  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'taskModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
-  ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({ name: 'conversation.chat.commandview', key: 'task-mode-review' }, TaskModeReviewCommandView))
-  ctx.inject(['remote.taskModesEvolution'], scope => {
+  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'evolveModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
+  ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({ name: 'conversation.chat.commandview', key: 'evolve-mode-review' }, EvolveModeReviewCommandView))
+  ctx.inject(['remote.evolveModes'], scope => {
     const evolution: EvolutionRemoteFace = {
-      dashboard: async () => unwrapEvolution(await scope.remote.taskModesEvolution.dashboard({})),
-      config: async request => unwrapEvolution(await scope.remote.taskModesEvolution.config(request)),
-      proposal: async request => unwrapEvolution(await scope.remote.taskModesEvolution.proposal(request)),
-      setting: async request => unwrapEvolution(await scope.remote.taskModesEvolution.setting(request)),
-      restore: async request => unwrapEvolution(await scope.remote.taskModesEvolution.restore(request)),
+      dashboard: async () => unwrapEvolution(await scope.remote.evolveModes.dashboard({})),
+      config: async request => unwrapEvolution(await scope.remote.evolveModes.config(request)),
+      proposal: async request => unwrapEvolution(await scope.remote.evolveModes.proposal(request)),
+      setting: async request => unwrapEvolution(await scope.remote.evolveModes.setting(request)),
+      restore: async request => unwrapEvolution(await scope.remote.evolveModes.restore(request)),
     }
     scope.slots.inject('settings.section', () => scope.slots.register({
       name: 'settings.section',
-      id: 'task-modes',
+      id: 'evolve-modes',
       order: 12,
-      label: () => scope.locale.bind('taskModes')('settingsNav'),
-      locale: 'taskModes',
+      label: () => scope.locale.bind('evolveModes')('settingsNav'),
+      locale: 'evolveModes',
       inject: (): EvolutionSettingsInjected => ({ evolution }),
-    }, TaskModesSettings))
+    }, EvolveModesSettings))
   })
 }

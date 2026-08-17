@@ -151,7 +151,7 @@ export interface EvolutionRestoreRequest extends EvolutionDashboardRequest {
 }
 
 /** One advisory review of a completed parent turn. */
-export interface TaskModeReview {
+export interface EvolveModeReview {
   readonly turn: number
   readonly profile: ReviewProfile
   readonly status: 'completed' | 'unavailable'
@@ -165,17 +165,17 @@ export interface TaskModeReview {
  * {@link QualityGate} independently.
  * @deprecated Use `ReasoningMode` and `QualityGate`.
  */
-export type TaskMode = 'normal' | 'first-principles' | 'adversarial-review'
+export type EvolveModeLegacyAlias = 'normal' | 'first-principles' | 'adversarial-review'
 
-/** @deprecated Use {@link TaskModeReview}. */
-export type AdversarialReview = TaskModeReview
+/** @deprecated Use {@link EvolveModeReview}. */
+export type AdversarialReview = EvolveModeReview
 
 /** Full plugin-owned durable state for one session. */
-export interface TaskModeRecord {
+export interface EvolveModeRecord {
   readonly reasoning: ReasoningMode
   readonly quality: QualityGate
   readonly evolution: EvolutionMode
   readonly pendingEvolutionTurns: readonly number[]
   readonly updatedAt: number
-  readonly reviews: readonly TaskModeReview[]
+  readonly reviews: readonly EvolveModeReview[]
 }

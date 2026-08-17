@@ -96,7 +96,7 @@ export type EvolutionSettingMutation =
 export interface EvolutionSettingRequest extends EvolutionDashboardRequest { readonly mutation: EvolutionSettingMutation }
 export interface EvolutionRestoreRequest extends EvolutionDashboardRequest { readonly id: string }
 
-export interface TaskModeReview {
+export interface EvolveModeReview {
   readonly turn: number
   readonly profile: ReviewProfile
   readonly status: 'completed' | 'unavailable'
@@ -105,17 +105,17 @@ export interface TaskModeReview {
 }
 
 /** @deprecated Use ReasoningMode and QualityGate. */
-export type TaskMode = 'normal' | 'first-principles' | 'adversarial-review'
-/** @deprecated Use TaskModeReview. */
-export type AdversarialReview = TaskModeReview
+export type EvolveModeLegacyAlias = 'normal' | 'first-principles' | 'adversarial-review'
+/** @deprecated Use EvolveModeReview. */
+export type AdversarialReview = EvolveModeReview
 
-export interface TaskModeRecord {
+export interface EvolveModeRecord {
   readonly reasoning: ReasoningMode
   readonly quality: QualityGate
   readonly evolution: EvolutionMode
   readonly pendingEvolutionTurns: readonly number[]
   readonly updatedAt: number
-  readonly reviews: readonly TaskModeReview[]
+  readonly reviews: readonly EvolveModeReview[]
 }
 
 export interface Config { shellTool: 'bash' | 'pwsh' }

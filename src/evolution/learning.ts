@@ -4,7 +4,7 @@ import { BlockAssembler, createUserMessage, deepFreeze } from '@deepseek-ai/dsh-
 import type { FinishReason, GenerateOptions } from '@deepseek-ai/dsh-llm'
 import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { completeEvolutionBatch } from '../storage.ts'
-import type { StoredTaskModeRecord } from '../storage.ts'
+import type { StoredEvolveModeRecord } from '../storage.ts'
 import type { EvolutionProposal, EvolutionSetting } from '../types.ts'
 import { evolutionMessages } from './messages.ts'
 import {
@@ -64,7 +64,7 @@ export async function runEvolutionLearningCall(
   const route = learningRoute(agent)
   const messages = [createUserMessage({
     content: [{ type: 'text', text: prompt }],
-    source: { kind: 'plugin', plugin: 'dsh-task-modes:evolution-learning' },
+    source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution-learning' },
   })]
   const options: GenerateOptions = deepFreeze({
     ...route,
@@ -103,7 +103,7 @@ export async function learnFromTurns(
   turns: readonly number[],
   signal: AbortSignal,
   store: EvolutionStore,
-  records: KvTable<string, StoredTaskModeRecord>,
+  records: KvTable<string, StoredEvolveModeRecord>,
 ): Promise<void> {
   const sessionId = String(agent.session.id)
   const run = {

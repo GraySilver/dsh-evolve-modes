@@ -58,8 +58,8 @@ export const evolutionDashboardSchema = z.object({
   runs: z.array(evolutionLearningRunSchema),
 }).strict()
 
-const SERVICE = 'taskModesEvolution'
-const PACKAGE = '@graysilver/dsh-task-modes'
+const SERVICE = 'evolveModes'
+const PACKAGE = '@graysilver/dsh-evolve-modes'
 
 function descriptor(
   method: string,

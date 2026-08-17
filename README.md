@@ -1,15 +1,15 @@
-# DeepSeek Harness Mode
+# dsh-evolve-modes
 
 [English](README.en.md)｜[中文](README.md)
 
 > 让每一次 Agent 协作都有明确的工作方式。
 
-**dsh-task-modes** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。它把输入区中的一个紧凑控制项变成可组合的任务工作流：选择 Agent 如何工作、如何思考、如何审查结果，以及是否从已完成的协作中提出可复核的长期规则。
+**dsh-evolve-modes** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。它把输入区中的一个紧凑控制项变成可组合的任务工作流：选择 Agent 如何工作、如何思考、如何审查结果，以及是否从已完成的协作中提出可复核的长期规则。
 
 不 fork DeepSeek Harness，不复制 Agent loop，也不改核心代码。安装插件后，每个会话都能清楚看到当前任务组合。
 
 
-![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
+![dsh-evolve-modes](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/social-preview.png)
 
 ## 一个按钮，四个决策
 
@@ -42,16 +42,10 @@ Execute · Standard · Off · Evolution Propose
 
 ## 一条命令安装
 
-将已发布的 npm 版本安装到 DeepSeek Harness Web profile：
+将 GitHub release 包安装到 DeepSeek Harness Web profile：
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
-```
-
-已经安装 `dsh` 时：
-
-```sh
-dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
+dsh plugin --profile web add https://github.com/GraySilver/dsh-evolve-modes/releases/download/v0.3.0/graysilver-dsh-evolve-modes-0.3.0.tgz
 ```
 
 重启 Web profile 后，自进化模式控件会出现在输入区工具旁。
@@ -59,7 +53,7 @@ dsh plugin --profile web add @graysilver/dsh-task-modes@0.3.0
 需要审计源码或进行开发时，可以安装固定 Git revision：
 
 ```sh
-dsh plugin --profile web add github:GraySilver/dsh-task-modes#<trusted-commit>
+dsh plugin --profile web add github:GraySilver/dsh-evolve-modes#<trusted-commit>
 ```
 
 Git 安装包会执行安装期代码，请只安装可信 revision。
@@ -73,9 +67,9 @@ Git 安装包会执行安装期代码，请只安装可信 revision。
 - **不暗中改写答案。** 审查只给出证据、缺口和后续行动，不会静默修改、重试或修复父回复。
 - **自进化先提议再生效。** 学习 Agent 只能生成带用户消息证据的提议；只有人工批准后的规则才会进入 system prompt。
 - **插件拥有自己的设置页。** 在顶层“自进化模式”设置中管理全局学习阈值、待审阅提议、规则、备份与学习运行记录。
-- **插件化分发。** 通过 npm 安装；需要审计时可安装固定 Git revision；DeepSeek Harness core 保持不变。
+- **插件化分发。** 通过 GitHub release 包安装；需要审计时可安装固定 Git revision；DeepSeek Harness core 保持不变。
 
-![任务模式审查面板](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/task-modes-review.png)
+![进化模式审查面板](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/evolve-modes-review.png)
 
 ## 能解释清楚的质量门禁
 
@@ -105,7 +99,7 @@ Concrete follow-up
 
 自动学习不会直接改变后续行为。每一项新增、更新或删除都先进入待审阅提议，必须由用户应用后才成为已批准规则。提议的证据必须逐字来自用户消息；助手推断、临时任务细节、一次性实现结果、沉默或未重复表达都不能单独成为规则或删除依据。
 
-所有已批准规则都是全局规则。插件把它们写入带有 `<dsh-task-modes-learned-instructions>` 标记的 system prompt section，并在 Trajectory 中投影相同内容。设置页支持手工增删改、应用或忽略提议、查看学习失败，以及恢复每次变更前自动创建的备份。
+所有已批准规则都是全局规则。插件把它们写入带有 `<dsh-evolve-modes-learned-instructions>` 标记的 system prompt section，并在 Trajectory 中投影相同内容。设置页支持手工增删改、应用或忽略提议、查看学习失败，以及恢复每次变更前自动创建的备份。
 
 所有数据都保存在插件自己的 storage domain。插件不会写入 `AGENTS.md`、`CLAUDE.md` 或任何项目文件。
 
@@ -131,7 +125,7 @@ Plan 审核不会延迟或阻断官方 `exit_plan_mode` 审批。官方退出工
 
 ## 持久化与命令
 
-bundle 使用 `graysilver_task_modes` 保存会话维度与审查记录，并使用 `graysilver_task_modes_evolution` 保存跨会话的提议、已批准规则、备份和学习运行记录。工作状态不会重复存储，而是由官方 Plan mode 从 session log 折叠得到。所有插件状态均可跨服务重启和会话重新加载继续存在，同时不新增自定义 DSH session event 类型。
+bundle 使用 `graysilver_dsh_evolve_modes` 保存会话维度与审查记录，并使用 `graysilver_dsh_evolve_modes_evolution` 保存跨会话的提议、已批准规则、备份和学习运行记录。首次启动新名称时会从旧 domain 复制已有数据；工作状态不会重复存储，而是由官方 Plan mode 从 session log 折叠得到。所有插件状态均可跨服务重启和会话重新加载继续存在，同时不新增自定义 DSH session event 类型。
 
 `0.3.0` 启动时自动补齐 `0.2.0` 记录的自进化默认值，并继续迁移更早的单模式记录：
 
@@ -144,20 +138,20 @@ bundle 使用 `graysilver_task_modes` 保存会话维度与审查记录，并使
 可在 Web 输入区或命令 API 使用：
 
 ```text
-/task-mode
-/task-mode working execute
-/task-mode working plan
-/task-mode reasoning standard
-/task-mode reasoning first-principles
-/task-mode quality off
-/task-mode quality general-review
-/task-mode quality acceptance-review
-/task-mode evolution off
-/task-mode evolution propose
-/task-mode evolution batch-size <1..100>
-/task-mode evolution max-pending-proposals <1..1000>
-/task-mode review <turn>
-/task-mode reviews
+/evolve-mode
+/evolve-mode working execute
+/evolve-mode working plan
+/evolve-mode reasoning standard
+/evolve-mode reasoning first-principles
+/evolve-mode quality off
+/evolve-mode quality general-review
+/evolve-mode quality acceptance-review
+/evolve-mode evolution off
+/evolve-mode evolution propose
+/evolve-mode evolution batch-size <1..100>
+/evolve-mode evolution max-pending-proposals <1..1000>
+/evolve-mode review <turn>
+/evolve-mode reviews
 ```
 
 旧的单一模式别名仍可迁移：`normal`、`first-principles` 和 `adversarial-review`。它们会将工作状态重置为执行，并按上表转换；自进化设置保持当前值。
@@ -167,7 +161,7 @@ bundle 使用 `graysilver_task_modes` 保存会话维度与审查记录，并使
 bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时才覆盖：
 
 ```yaml
-- id: dsh-task-modes
+- id: dsh-evolve-modes
   config:
     shellTool: bash
 ```
@@ -176,11 +170,11 @@ bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时�
 
 ## 兼容性
 
-需要提供 Web plugin loader、client UI slots、storage domain、直接 `llm` service、质量审查所需的 forked subagent、官方 Plan mode service 与 DSH tools pipeline 的 DeepSeek Harness 版本。npm 是推荐的稳定分发渠道；固定 Git revision 继续用于源码审计和开发。
+需要提供 Web plugin loader、client UI slots、storage domain、直接 `llm` service、质量审查所需的 forked subagent、官方 Plan mode service 与 DSH tools pipeline 的 DeepSeek Harness 版本。GitHub release 包是推荐的稳定分发渠道；固定 Git revision 继续用于源码审计和开发。
 
 ## 反馈
 
-Bug 和功能建议请提交到 [GitHub Issues](https://github.com/GraySilver/dsh-task-modes/issues)。欢迎在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 分享集成和使用反馈。
+Bug 和功能建议请提交到 [GitHub Issues](https://github.com/GraySilver/dsh-evolve-modes/issues)。欢迎在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 分享集成和使用反馈。
 
 ## 许可证
 

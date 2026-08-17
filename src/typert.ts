@@ -2,7 +2,7 @@ import { EVOLUTION_REMOTE_DESCRIPTORS } from './evolution/wire.ts'
 
 /** Strict Host Typert contribution discovered from this plugin package. */
 export const TYPERT = {
-  package: '@graysilver/dsh-task-modes',
+  package: '@graysilver/dsh-evolve-modes',
   face: 'host',
   schemas: [],
   invocations: EVOLUTION_REMOTE_DESCRIPTORS,
@@ -12,8 +12,8 @@ export const TYPERT = {
       summary: 'Plugin-owned self-evolution proposal and learned-instruction service.',
       tags: [],
       jsDoc: '/** Plugin-owned self-evolution proposal and learned-instruction service. */',
-      key: 'taskModesEvolution',
-      exportName: 'TaskModesEvolutionService',
+      key: 'evolveModes',
+      exportName: 'DshEvolveModesService',
       members: [],
       types: [],
     }],

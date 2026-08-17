@@ -32,6 +32,14 @@ export const EMPTY_EVOLUTION_STATE: EvolutionState = {
 
 /** Plugin-owned cross-session learned-instruction state. */
 export const evolutionDomain = defineDomain({
+  name: 'graysilver_dsh_evolve_modes_evolution',
+  version: 1,
+  global: { schema: evolutionStateSchema, initial: EMPTY_EVOLUTION_STATE },
+  tables: {},
+})
+
+/** Read-only migration source for installations using the former package identity. */
+export const legacyEvolutionDomain = defineDomain({
   name: 'graysilver_task_modes_evolution',
   version: 1,
   global: { schema: evolutionStateSchema, initial: EMPTY_EVOLUTION_STATE },
@@ -67,6 +75,25 @@ function normalizeState(value: EvolutionState & { readonly config?: EvolutionCon
     backups: value.backups.map(normalize),
     runs: value.runs.map(({ projectRoot: _projectRoot, ...run }) => run),
   }
+}
+
+function isPristineState(state: EvolutionState): boolean {
+  return state.revision === 0
+    && state.updatedAt === 0
+    && state.settings.length === 0
+    && state.proposals.length === 0
+    && state.backups.length === 0
+    && state.runs.length === 0
+}
+
+/** Copy the former global domain only when the renamed domain has never been used. */
+export async function migrateRenamedEvolutionState(
+  target: DomainGlobal<EvolutionState>,
+  legacy: DomainGlobal<EvolutionState>,
+): Promise<void> {
+  const current = normalizeState(target.get() as EvolutionState & { readonly config?: EvolutionConfig })
+  const previous = normalizeState(legacy.get() as EvolutionState & { readonly config?: EvolutionConfig })
+  if (isPristineState(current) && !isPristineState(previous)) await target.set(previous)
 }
 
 function publicSetting(setting: EvolutionSetting): Omit<EvolutionSetting, 'scope' | 'projectRoot'> {

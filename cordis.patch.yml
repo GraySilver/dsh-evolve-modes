@@ -1,5 +1,5 @@
 - insert:
-    - id: dsh-task-modes
-      name: '@graysilver/dsh-task-modes'
+    - id: dsh-evolve-modes
+      name: '@graysilver/dsh-evolve-modes'
       config:
         shellTool: !!js "process.platform === 'win32' ? 'pwsh' : 'bash'"

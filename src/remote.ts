@@ -10,7 +10,7 @@ import type {
 import { EVOLUTION_REMOTE_DESCRIPTORS } from './evolution/wire.ts'
 
 /** Browser namespace installed by this plugin's strict Remote contribution. */
-export interface TaskModesEvolutionRemote {
+export interface DshEvolveModesRemote {
   dashboard(request: EvolutionDashboardRequest): Promise<RemoteResult<EvolutionDashboard>>
   config(request: EvolutionConfigRequest): Promise<RemoteResult<EvolutionDashboard>>
   proposal(request: EvolutionProposalRequest): Promise<RemoteResult<EvolutionDashboard>>
@@ -20,19 +20,19 @@ export interface TaskModesEvolutionRemote {
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteMap {
-    'taskModesEvolution/dashboard': TaskModesEvolutionRemote['dashboard']
-    'taskModesEvolution/config': TaskModesEvolutionRemote['config']
-    'taskModesEvolution/proposal': TaskModesEvolutionRemote['proposal']
-    'taskModesEvolution/setting': TaskModesEvolutionRemote['setting']
-    'taskModesEvolution/restore': TaskModesEvolutionRemote['restore']
+    'evolveModes/dashboard': DshEvolveModesRemote['dashboard']
+    'evolveModes/config': DshEvolveModesRemote['config']
+    'evolveModes/proposal': DshEvolveModesRemote['proposal']
+    'evolveModes/setting': DshEvolveModesRemote['setting']
+    'evolveModes/restore': DshEvolveModesRemote['restore']
   }
   interface TypertRemoteNamespaceMap {
-    taskModesEvolution: TaskModesEvolutionRemote
+    evolveModes: DshEvolveModesRemote
   }
 }
 
 export const TYPERT_REMOTE: TypertRemoteContribution = {
-  package: '@graysilver/dsh-task-modes',
+  package: '@graysilver/dsh-evolve-modes',
   descriptors: EVOLUTION_REMOTE_DESCRIPTORS,
 }
 

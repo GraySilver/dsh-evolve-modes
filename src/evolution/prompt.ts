@@ -6,8 +6,8 @@ import type {
 } from '../types.ts'
 import type { EvolutionProposalDraft } from './store.ts'
 
-export const EVOLUTION_PROMPT_OPEN = '<dsh-task-modes-learned-instructions>'
-export const EVOLUTION_PROMPT_CLOSE = '</dsh-task-modes-learned-instructions>'
+export const EVOLUTION_PROMPT_OPEN = '<dsh-evolve-modes-learned-instructions>'
+export const EVOLUTION_PROMPT_CLOSE = '</dsh-evolve-modes-learned-instructions>'
 const EVOLUTION_LEARNING_BUSINESS_PROMPT = (
   'Learn durable facts, preferences, and work requirements from this self-evolution conversation. '
   + 'Keep learned instructions concise, evidence-based, and useful for future sessions.'
