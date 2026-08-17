@@ -1,6 +1,6 @@
 # dsh-task-modes
 
-[English](README.en.md)
+[English](README.en.md)｜[中文](README.md)
 
 > 让每一次 Agent 协作都有明确的工作方式。
 
