@@ -1,4 +1,4 @@
-# dsh-evolve-modes
+# DeepSeek Evolve Modes
 
 [English](README.en.md)｜[中文](README.md)
 
