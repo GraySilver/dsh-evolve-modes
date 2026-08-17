@@ -2,7 +2,7 @@
 
 [English](README.en.md)｜[中文](README.md)
 
-> 让 Agent 的工作方式可组合、可审查、可持续改进。
+> 让 Agent 的工作方式可组合、可审查、可持续改进，最终实现 Agent Self Evoling。
 
 **dsh-evolve-modes** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。它在输入区提供一个紧凑的工作流控制项，让你组合 Agent 的工作状态、思考策略、质量门禁和自进化行为。
 
@@ -10,7 +10,7 @@
 
 ![dsh-evolve-modes](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/social-preview.png)
 
-## 30 秒了解
+## 快速入门
 
 输入区会显示当前组合，例如：
 
