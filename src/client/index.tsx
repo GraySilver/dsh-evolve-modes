@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
 import evolveModesRemote from '../remote.ts'
@@ -89,6 +89,10 @@ const triggerStyle: CSSProperties = {
   padding: '4px 4px 4px 8px',
   textAlign: 'left',
 }
+const MODE_MENU_HEIGHT = 420
+const MODE_MENU_MARGIN = 12
+const MODE_MENU_GAP = 4
+const modeMenuClassName = 'dsh-evolve-modes-menu'
 const reviewStyle: CSSProperties = {
   background: 'var(--dsw-alias-bg-module-platform)',
   borderRadius: 6,
@@ -125,8 +129,10 @@ function evolutionLabel(evolution: EvolutionMode, t: ControlProps['t']): string 
 function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, setEvolution, useProjection, t }: ControlProps) {
   const [state, setState] = useState<ModeState | undefined>()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuLayout, setMenuLayout] = useState<{ side: 'top' | 'bottom'; height: number }>({ side: 'top', height: MODE_MENU_HEIGHT })
   const [busy, setBusy] = useState<'working' | 'reasoning' | 'quality' | 'evolution' | undefined>()
   const [error, setError] = useState<string | undefined>()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const plan = useProjection('plan')
   const working: 'execute' | 'plan' = plan !== undefined && (plan.pending ? !plan.active : plan.active) ? 'plan' : 'execute'
 
@@ -139,6 +145,27 @@ function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, set
     })
     return () => { live = false }
   }, [getState])
+
+  useLayoutEffect(() => {
+    if (!menuOpen) return
+    const fit = (): void => {
+      const trigger = triggerRef.current
+      if (trigger === null) return
+      const rect = trigger.getBoundingClientRect()
+      const availableTop = Math.max(1, Math.floor(rect.top - MODE_MENU_MARGIN - MODE_MENU_GAP))
+      const availableBottom = Math.max(1, Math.floor(window.innerHeight - rect.bottom - MODE_MENU_MARGIN - MODE_MENU_GAP))
+      const side = availableTop >= availableBottom ? 'top' : 'bottom'
+      const height = Math.min(MODE_MENU_HEIGHT, side === 'top' ? availableTop : availableBottom)
+      setMenuLayout(current => current.side === side && current.height === height ? current : { side, height })
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    window.addEventListener('scroll', fit, true)
+    return () => {
+      window.removeEventListener('resize', fit)
+      window.removeEventListener('scroll', fit, true)
+    }
+  }, [menuOpen])
 
   const change = (kind: NonNullable<typeof busy>, operation: () => Promise<ModeState>): void => {
     setBusy(kind)
@@ -173,9 +200,12 @@ function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, set
     { id: 'evolution.off', label: t('evolutionOff'), icon: <IconCheckOutline14 /> },
     { id: 'evolution.propose', label: t('evolutionPropose'), icon: <IconThinkOutline14 /> },
   ]
+  const menuStyle = `.${modeMenuClassName} > [role="menu"] { height: ${menuLayout.height}px; max-height: ${menuLayout.height}px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }`
 
   return <span style={{ alignItems: 'center', display: 'inline-flex', minWidth: 0 }}>
+    <style>{menuStyle}</style>
     <Menu
+      className={modeMenuClassName}
       open={menuOpen}
       onClose={() => { setMenuOpen(false) }}
       items={menuItems}
@@ -207,9 +237,10 @@ function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, set
           change('evolution', () => setEvolution('propose'))
         }
       }}
-      side="top"
+      side={menuLayout.side}
       anchor={
         <button
+          ref={triggerRef}
           type="button"
           style={triggerStyle}
           aria-label={summary}
