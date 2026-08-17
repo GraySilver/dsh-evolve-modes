@@ -1,12 +1,13 @@
 # dsh-task-modes
 
+[English](README.en.md)
+
 > 让每一次 Agent 协作都有明确的工作方式。
 
 **dsh-task-modes** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。它把输入区中的一个紧凑控制项变成可组合的任务工作流：选择 Agent 如何工作、如何思考，以及如何审查结果。
 
 不 fork DeepSeek Harness，不复制 Agent loop，也不改核心代码。安装插件后，每个会话都能清楚看到当前任务组合。
 
-[English README](README.en.md)
 
 ![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
