@@ -11,7 +11,7 @@
 
 ![dsh-task-modes](https://raw.githubusercontent.com/GraySilver/dsh-task-modes/main/assets/social-preview.png)
 
-## 一个按钮，三个决策
+## 一个按钮，三种决策方式
 
 输入区会显示一个简洁的当前状态：
 
