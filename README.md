@@ -2,6 +2,13 @@
 
 [English](README.en.md)｜[中文](README.md)
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/@graysilver/dsh-evolve-modes"><img alt="npm" src="https://img.shields.io/npm/v/@graysilver/dsh-evolve-modes?style=flat-square&label=npm"></a>
+  <a href="https://github.com/GraySilver/dsh-evolve-modes/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/GraySilver/dsh-evolve-modes?style=flat-square&label=release"></a>
+  <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-4D6BFE?style=flat-square"></a>
+  <img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.1.0--rc.6-4D6BFE?style=flat-square">
+</p>
+
 > 让 Agent 的工作方式可组合、可审查、可持续改进，最终实现 Agent Self Evoling。
 
 **dsh-evolve-modes** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的独立 Web 插件。它在输入区提供一个紧凑的工作流控制项，让你组合 Agent 的工作状态、思考策略、质量门禁和自进化行为。
