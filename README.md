@@ -3,6 +3,7 @@
 [English](README.en.md)｜[中文](README.md)
 
 <p align="center">
+  <a href="https://github.com/GraySilver/dsh-evolve-modes/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/GraySilver/dsh-evolve-modes/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="https://www.npmjs.com/package/@graysilver/dsh-evolve-modes"><img alt="npm" src="https://img.shields.io/npm/v/@graysilver/dsh-evolve-modes?style=flat-square&label=npm"></a>
   <a href="https://github.com/GraySilver/dsh-evolve-modes/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/GraySilver/dsh-evolve-modes?style=flat-square&label=release"></a>
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-4D6BFE?style=flat-square"></a>
