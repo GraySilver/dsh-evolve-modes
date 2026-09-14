@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
 import evolveModesRemote from '../remote.ts'
+import type { DshEvolveModesRemote } from '../remote.ts'
 import type {
   ClientContext,
   ContextMessageNode,
@@ -270,7 +271,17 @@ function EvolveModeControl({ getState, setWorking, setReasoning, setQuality, set
   </span>
 }
 
-type ReviewProps = PropsRuntime<'conversation.chat.turnTail'> & PropsLocale<'evolveModes'> & InjectFace<Pick<ControlFace, 'review'>>
+type ReviewProps = PropsLocale<'evolveModes'> & InjectFace<Pick<ControlFace, 'review'>> & {
+  readonly turn: { readonly turn: number }
+}
+const ReviewMarkdown = MarkdownText as unknown as ComponentType<{
+  readonly text: string
+  readonly codeLabels: { readonly copyLabel: string; readonly copiedLabel: string }
+  readonly labels: {
+    readonly code: { readonly copyLabel: string; readonly copiedLabel: string }
+    readonly footnotes: string
+  }
+}>
 function ReviewTail({ turn, review, t }: ReviewProps) {
   const [item, setItem] = useState<EvolveModeReview | undefined>()
   useEffect(() => {
@@ -281,7 +292,8 @@ function ReviewTail({ turn, review, t }: ReviewProps) {
   if (item === undefined || item.text === '') return null
   const label = item.profile === 'general-review' ? t('generalReview') : t('acceptanceReview')
   const summary = item.status === 'completed' ? label : `${label} - ${t('unavailable')}`
-  return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconChecklistOutline14 /> {summary}</summary><div style={reviewBodyStyle}><div style={reviewMarkdownStyle}><MarkdownText text={item.text} /></div></div></details>
+  const codeLabels = { copyLabel: t('copy'), copiedLabel: t('copied') }
+  return <details style={reviewStyle}><summary style={reviewSummaryStyle}><IconChecklistOutline14 /> {summary}</summary><div style={reviewBodyStyle}><div style={reviewMarkdownStyle}><ReviewMarkdown text={item.text} codeLabels={codeLabels} labels={{ code: codeLabels, footnotes: t('footnotes') }} /></div></div></details>
 }
 
 function EvolveModeReviewCommandView() { return null }
@@ -459,6 +471,9 @@ const en = {
   settingsImplicit: 'Implicit',
   settingsAdd: 'Add',
   unavailable: 'unavailable',
+  copy: 'Copy',
+  copied: 'Copied',
+  footnotes: 'Footnotes',
   error: 'Mode update failed',
 }
 const zh: typeof en = {
@@ -519,6 +534,9 @@ const zh: typeof en = {
   settingsImplicit: '隐含',
   settingsAdd: '添加',
   unavailable: '不可用',
+  copy: '复制',
+  copied: '已复制',
+  footnotes: '脚注',
   error: '模式更新失败',
 }
 type EvolveModesKey = keyof typeof en
@@ -704,6 +722,28 @@ function RuleRow({ setting, t, saving, onEdit, onDelete }: { setting: EvolutionD
   return <div style={settingsItemStyle}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}><span style={settingsMetaStyle}>{categoryLabel(setting.category, t)}</span></div><span style={settingsTextStyle}>{setting.content}</span><div style={settingsActionsStyle}><Button size="sm" variant="ghost" icon={<IconEditOutline16 size={14} />} disabled={saving} onClick={onEdit}>{t('settingsEditRule')}</Button><Button size="sm" variant="ghost" icon={<IconTrashOutline16 size={14} />} disabled={saving} onClick={onDelete}>{t('settingsDelete')}</Button></div></div>
 }
 
+type CommandExecutionResponse =
+  | { readonly ok: false; readonly error: { readonly message: string; readonly code: string } }
+  | { readonly ok: true; readonly value?: { readonly result: { readonly kind: 'success' | 'error'; readonly text?: string } } }
+
+interface LegacySlotService {
+  specDynamic?: (name: string) => unknown
+  inject(name: string, effect: () => (() => void)): void
+  register(options: Readonly<Record<string, unknown>>, component: unknown): () => void
+}
+
+/** Register a pre-0.1.2 conversation slot only when the active UI still declares it. */
+function registerLegacySlot(
+  ctx: ClientContext,
+  name: string,
+  options: Readonly<Record<string, unknown>>,
+  component: unknown,
+): void {
+  const slots = ctx.slots as unknown as LegacySlotService
+  if (slots.specDynamic !== undefined && slots.specDynamic(name) === undefined) return
+  slots.inject(name, () => slots.register({ ...options, name }, component))
+}
+
 /** Mount composable evolve-mode controls, persisted review history, and Trajectory evidence. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('evolveModes', { en, zh }), 'dsh-evolve-modes: locale')
@@ -712,7 +752,10 @@ export function apply(ctx: ClientContext): void {
   ctx.conversationEvents.register(grillingTrajectoryDefinition)
   ctx.conversationEvents.register(learnedInstructionsTrajectoryDefinition)
   const execute = async (sessionId: string, line: string): Promise<string> => {
-    const response = await ctx.remote.commands.execute(sessionId as never, line, [])
+    const remote = ctx.remote as unknown as {
+      readonly commands: { execute(sessionId: never, line: string, images: readonly never[]): Promise<CommandExecutionResponse> }
+    }
+    const response = await remote.commands.execute(sessionId as never, line, [])
     if (!response.ok) throw new Error(`${response.error.message} (${response.error.code})`)
     if (response.value === undefined) throw new Error(`unknown command: ${line}`)
     if (response.value.result.kind === 'error') throw new Error(response.value.result.text)
@@ -729,15 +772,16 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'evolve-modes', locale: 'evolveModes', inject: faceFor }, EvolveModeControl))
   ctx.slots.inject('conversation.input.plan', () => ctx.slots.register({ name: 'conversation.input.plan', priority: -1 }, UnifiedPlanSeat))
-  ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', select: () => true, locale: 'evolveModes', inject: sessionId => ({ review: faceFor(sessionId).review }) }, ReviewTail))
-  ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({ name: 'conversation.chat.commandview', key: 'evolve-mode-review' }, EvolveModeReviewCommandView))
+  registerLegacySlot(ctx, 'conversation.chat.turnTail', { select: () => true, locale: 'evolveModes', inject: (sessionId: string) => ({ review: faceFor(sessionId).review }) }, ReviewTail)
+  registerLegacySlot(ctx, 'conversation.chat.commandview', { key: 'evolve-mode-review' }, EvolveModeReviewCommandView)
   ctx.inject(['remote.evolveModes'], scope => {
+    const remote = scope.remote as unknown as { readonly evolveModes: DshEvolveModesRemote }
     const evolution: EvolutionRemoteFace = {
-      dashboard: async () => unwrapEvolution(await scope.remote.evolveModes.dashboard({})),
-      config: async request => unwrapEvolution(await scope.remote.evolveModes.config(request)),
-      proposal: async request => unwrapEvolution(await scope.remote.evolveModes.proposal(request)),
-      setting: async request => unwrapEvolution(await scope.remote.evolveModes.setting(request)),
-      restore: async request => unwrapEvolution(await scope.remote.evolveModes.restore(request)),
+      dashboard: async () => unwrapEvolution(await remote.evolveModes.dashboard({})),
+      config: async request => unwrapEvolution(await remote.evolveModes.config(request)),
+      proposal: async request => unwrapEvolution(await remote.evolveModes.proposal(request)),
+      setting: async request => unwrapEvolution(await remote.evolveModes.setting(request)),
+      restore: async request => unwrapEvolution(await remote.evolveModes.restore(request)),
     }
     scope.slots.inject('settings.section', () => scope.slots.register({
       name: 'settings.section',

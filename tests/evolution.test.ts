@@ -115,6 +115,20 @@ describe('self-evolution learning messages', () => {
     ])
   })
 
+  it('reads the immutable Session snapshot API used by Harness 0.1.2', () => {
+    const events = turnEvents(1, 'Snapshot request', ['Snapshot answer'])
+    const base = fakeAgent(events)
+    const agent = {
+      ...base,
+      session: { ...base.session, events: undefined, snapshotEvents: () => events },
+    } as unknown as Agent
+
+    expect(evolutionMessages(agent, [1]).map(({ role, text }) => ({ role, text }))).toEqual([
+      { role: 'user', text: 'Snapshot request' },
+      { role: 'assistant', text: 'Snapshot answer' },
+    ])
+  })
+
   it('truncates a long assistant message to the same head-and-tail snapshot as Jarvis learning', () => {
     const longAnswer = `${'A'.repeat(2500)}${'B'.repeat(2500)}`
     const messages = evolutionMessages(fakeAgent(turnEvents(1, 'Request', [longAnswer])), [1])
@@ -306,13 +320,14 @@ describe('self-evolution learning prompt', () => {
 describe('isolated self-evolution LLM call', () => {
   it('sends one plugin-owned data message with no tools or inherited Agent context', async () => {
     const requests: GenerateOptions[] = []
+    const controller = new AbortController()
     const parentEvents = turnEvents(1, 'Parent conversation', [
       'Inherited AGENTS.md and parent working context must not appear.',
     ])
     const result = await runEvolutionLearningCall(
       streamContext(textResponse('{"operations":[]}'), requests),
       fakeAgent(parentEvents),
-      new AbortController().signal,
+      controller.signal,
       '{"mode":"analyze","input":{"messages":[]}}',
     )
 
@@ -335,6 +350,13 @@ describe('isolated self-evolution LLM call', () => {
     })
     expect(JSON.stringify(request)).not.toContain('Inherited AGENTS.md')
     expect(JSON.stringify(request)).not.toContain('Parent conversation')
+    expect(Object.isFrozen(request)).toBe(true)
+    expect(Object.isFrozen(request.messages)).toBe(true)
+    expect(Object.isFrozen(request.messages[0])).toBe(true)
+    expect(Object.isFrozen(request.messages[0]?.content)).toBe(true)
+    expect(Object.isFrozen(controller.signal)).toBe(false)
+    controller.abort()
+    expect(controller.signal.aborted).toBe(true)
   })
 
   it('falls back to the Agent route when no resolved request header exists', async () => {

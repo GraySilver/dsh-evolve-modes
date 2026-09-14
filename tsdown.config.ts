@@ -9,7 +9,10 @@ export default defineConfig([
     dts: false,
     outDir: 'lib',
     fixedExtension: false,
-    deps: { neverBundle: [/^@deepseek-ai\//, 'react', 'zod'] },
+    deps: {
+      alwaysBundle: ['@deepseek-ai/dsh-util-values'],
+      neverBundle: [/^@deepseek-ai\/(?!dsh-util-values$)/, 'react', 'zod'],
+    },
   },
   {
     entry: { client: 'src/client/index.tsx' },

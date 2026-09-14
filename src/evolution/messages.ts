@@ -1,4 +1,5 @@
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { sessionEvents } from '../session-events.ts'
 import type { EvolutionLearningMessage } from './prompt.ts'
 
 const LEARNING_MESSAGE_LIMIT = 100
@@ -21,7 +22,7 @@ export function evolutionMessages(agent: Agent, turns: readonly number[]): Evolu
   const userMessages: EvolutionLearningMessage[] = []
   const assistantByTurn = new Map<number, EvolutionLearningMessage>()
   let currentTurn: number | undefined
-  for (const event of agent.session.events) {
+  for (const event of sessionEvents(agent.session)) {
     if (event.type === 'turn/start') {
       currentTurn = event.data.turn
       continue

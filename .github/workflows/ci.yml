@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  verify-harness-0-1-1:
     name: Verify Harness 0.1.1-rc.2 compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -39,6 +39,86 @@ jobs:
 
       - name: Run test suite
         run: pnpm test
+
+      - name: Smoke-load host entry
+        run: node -e "import('./lib/index.js')"
+
+      - name: Validate npm package archive
+        run: npm pack --dry-run --ignore-scripts
+
+  verify-harness-0-1-2:
+    name: Verify Harness 0.1.2-rc.1 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+
+      - name: Install baseline dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Select Harness 0.1.2-rc.1 packages
+        run: >-
+          pnpm add --save-dev --save-exact
+          @deepseek-ai/cordis@4.0.2
+          @deepseek-ai/dsh-api-remotes@0.1.2-rc.1
+          @deepseek-ai/dsh-agent@0.1.2-rc.1
+          @deepseek-ai/dsh-agent-presets@0.1.2-rc.1
+          @deepseek-ai/dsh-atomic-write@0.1.2-rc.1
+          @deepseek-ai/dsh-attachment@0.1.2-rc.1
+          @deepseek-ai/dsh-client-connection@0.1.2-rc.1
+          @deepseek-ai/dsh-client-locale@0.1.2-rc.1
+          @deepseek-ai/dsh-client-ui-conversation@0.1.2-rc.1
+          @deepseek-ai/dsh-client-ui-primitives@0.1.2-rc.1
+          @deepseek-ai/dsh-client-ui-settings@0.1.2-rc.1
+          @deepseek-ai/dsh-client-ui-slots@0.1.2-rc.1
+          @deepseek-ai/dsh-code-runtime@0.1.2-rc.1
+          @deepseek-ai/dsh-commands@0.1.2-rc.1
+          @deepseek-ai/dsh-home-paths@0.1.2-rc.1
+          @deepseek-ai/dsh-invariants@0.1.2-rc.1
+          @deepseek-ai/dsh-jobs@0.1.2-rc.1
+          @deepseek-ai/dsh-llm@0.1.2-rc.1
+          @deepseek-ai/dsh-plan-mode@0.1.2-rc.1
+          @deepseek-ai/dsh-scope@0.1.2-rc.1
+          @deepseek-ai/dsh-session@0.1.2-rc.1
+          @deepseek-ai/dsh-session-persistence@0.1.2-rc.1
+          @deepseek-ai/dsh-session-projection@0.1.2-rc.1
+          @deepseek-ai/dsh-session-projection-cache@0.1.2-rc.1
+          @deepseek-ai/dsh-session-query@0.1.2-rc.1
+          @deepseek-ai/dsh-session-title@0.1.2-rc.1
+          @deepseek-ai/dsh-settings@0.1.2-rc.1
+          @deepseek-ai/dsh-storage@0.1.2-rc.1
+          @deepseek-ai/dsh-storage-domain@0.1.2-rc.1
+          @deepseek-ai/dsh-subagent@0.1.2-rc.1
+          @deepseek-ai/dsh-system-prompt@0.1.2-rc.1
+          @deepseek-ai/dsh-tool-todo@0.1.2-rc.1
+          @deepseek-ai/dsh-typert-protocol@0.1.2-rc.1
+          @deepseek-ai/dsh-tools@0.1.2-rc.1
+          @deepseek-ai/dsh-user-approval@0.1.2-rc.1
+          @deepseek-ai/dsh-user-questions@0.1.2-rc.1
+
+      - name: Type-check against Harness 0.1.2-rc.1
+        run: pnpm run typecheck
+
+      - name: Build package artifacts
+        run: pnpm run build
+
+      - name: Run test suite
+        run: pnpm test
+
+      - name: Smoke-load host entry
+        run: node -e "import('./lib/index.js')"
 
       - name: Validate npm package archive
         run: npm pack --dry-run --ignore-scripts

@@ -176,14 +176,17 @@ Quality review requires DSH's fork/subagent capability; self-evolution analysis 
 
 | Plugin version | DeepSeek Harness version | Status |
 | --- | --- | --- |
-| `0.4.0` | `0.1.1-rc.2` | Current; adds Grilling and passes type, build, automated, and package verification |
+| `0.4.1` | `0.1.1-rc.2`, `0.1.2-rc.1` | Current; handles the value-utility package split and passes both compatibility lanes |
+| `0.4.0` | `0.1.1-rc.2` | Historical compatibility release; adds Grilling |
 | `0.3.2` | `0.1.1-rc.2` | Historical compatibility release |
 | `0.3.1` | `0.1.0-rc.6` | Historical compatibility release |
 | `0.3.0` and earlier | Not revalidated | Unsupported; upgrade recommended |
 
-Starting with `0.3.2`, every plugin release updates this table and declares its machine-readable minimum Harness version through `peerDependencies`.
+Starting with `0.3.2`, every plugin release updates this table and declares its machine-readable Harness compatibility range through `peerDependencies`.
 
 Release `0.3.2` uses the command attachment argument and strict storage-domain types introduced by Harness `0.1.1-rc.2`, so it is not backward-compatible with `0.1.0-rc.6`. Pin both the plugin and Harness versions in production instead of relying on floating tags.
+
+Harness `0.1.2-rc.1` removes the legacy per-turn tail and command-view slots. The plugin capability-checks and skips those two old UI extensions; review commands and persisted records remain available, while inline per-turn review rendering is limited to the `0.1.1-rc.2` UI.
 
 Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, forked subagents for quality review, the official Plan mode service, and the DSH tools pipeline. Pinned npm releases are the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
 

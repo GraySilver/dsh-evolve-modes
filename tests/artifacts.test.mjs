@@ -40,6 +40,36 @@ test('registers the browser entry through the DSH module loader', async () => {
   }
 })
 
+test('skips legacy chat slots when the active UI no longer declares them', async () => {
+  let handoff
+  globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
+  try {
+    await import(`${pathToFileURL(new URL('../lib/client.js', import.meta.url).pathname).href}?slots=${Date.now()}`)
+    const plugin = handoff.factory(() => ({}))
+    const registrations = []
+    const ctx = {
+      effect: effect => effect(),
+      inject: () => {},
+      locale: { register: () => () => {} },
+      remote: { $mount: () => () => {} },
+      conversationEvents: { register: () => () => {} },
+      slots: {
+        specDynamic: () => undefined,
+        inject: (_name, effect) => effect(),
+        register: options => { registrations.push(options); return () => {} },
+      },
+    }
+    plugin.apply(ctx)
+
+    assert.deepEqual(registrations.map(item => item.name), [
+      'conversation.input.left',
+      'conversation.input.plan',
+    ])
+  } finally {
+    delete globalThis.window
+  }
+})
+
 test('mounts reviews beneath their matching completed turn', async () => {
   let handoff
   globalThis.window = { __ModuleLoader__: { load: (value) => { handoff = value } } }
@@ -49,6 +79,7 @@ test('mounts reviews beneath their matching completed turn', async () => {
     const registrations = []
     const definitions = []
     const calls = []
+    const disposers = []
     const ctx = {
       effect: (effect) => effect(),
       inject: (_dependencies, effect) => effect(ctx),
@@ -65,7 +96,7 @@ test('mounts reviews beneath their matching completed turn', async () => {
       } } },
       conversationEvents: { register: definition => { definitions.push(definition); return () => {} } },
       slots: {
-        inject: (_name, effect) => effect(),
+        inject: (_name, effect) => { disposers.push(effect()) },
         register: (options) => { registrations.push(options); return () => {} },
       },
     }
@@ -79,6 +110,8 @@ test('mounts reviews beneath their matching completed turn', async () => {
       'conversation.chat.commandview',
       'settings.section',
     ])
+    assert.equal(disposers.length, 5)
+    assert.ok(disposers.every(dispose => typeof dispose === 'function'))
     const tail = registrations[2]
     assert.equal(tail.select({}), true)
     const face = tail.inject('session-1')
@@ -196,6 +229,9 @@ test('ships migration, Plan enforcement, and both quality profiles', async () =>
   assert.match(artifact, /category must be exactly identity, preference, or work_rule/u)
   assert.match(artifact, /scope\.llm\.stream/u)
   assert.match(artifact, /const messages = \[createUserMessage/u)
+  assert.doesNotMatch(artifact, /import\s*\{[^}]*\bdeepFreeze\b[^}]*\}\s*from\s*"@deepseek-ai\/dsh-llm"/u)
+  assert.doesNotMatch(artifact, /from\s*"@deepseek-ai\/dsh-util-values"/u)
+  assert.match(artifact, /function deepFreeze\(/u)
   assert.doesNotMatch(artifact, /LEARNING_TOOLS/u)
   assert.doesNotMatch(patch, /dsh-plan-mode/u)
 })
