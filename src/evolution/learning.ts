@@ -17,6 +17,12 @@ import {
 import type { EvolutionLearningInput } from './prompt.ts'
 import type { EvolutionProposalDraft, EvolutionStore } from './store.ts'
 
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'evolve-modes': { kind: 'evolve-modes'; plugin: string }
+  }
+}
+
 function relevantState(
   store: EvolutionStore,
 ): { readonly settings: readonly EvolutionSetting[]; readonly proposals: readonly EvolutionProposal[] } {
@@ -65,7 +71,7 @@ export async function runEvolutionLearningCall(
   const route = learningRoute(agent)
   const messages = [createUserMessage({
     content: [{ type: 'text', text: prompt }],
-    source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution-learning' },
+    source: { kind: 'evolve-modes', plugin: 'dsh-evolve-modes:evolution-learning' },
   })]
   const options: GenerateOptions = deepFreeze({
     ...route,

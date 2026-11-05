@@ -3,30 +3,32 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
 import evolveModesRemote from '../remote.ts'
 import type { DshEvolveModesRemote } from '../remote.ts'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {
-  ClientContext,
   ContextMessageNode,
   ConversationLocation,
   ConversationNodeContext,
   ConversationNodeDefinition,
   ConversationViewNode,
-} from '@deepseek-ai/dsh-client-runtime/client'
+} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import {
   Button,
-  IconCheckOutline14,
-  IconCheckOutline16,
-  IconChecklistOutline14,
-  IconChevronDownOutline14,
-  IconCloseOutline16,
-  IconEditOutline16,
-  IconPlusOutline16,
-  IconRefreshOutline14,
-  IconThinkOutline14,
-  IconTrashOutline16,
+  IconCheckOutlineRegular as IconCheckOutline14,
+  IconCheckOutlineMedium as IconCheckOutline16,
+  IconChecklistOutlineRegular as IconChecklistOutline14,
+  IconChevronDownOutlineRegular as IconChevronDownOutline14,
+  IconCloseOutlineMedium as IconCloseOutline16,
+  IconEditOutlineMedium as IconEditOutline16,
+  IconPlusOutlineMedium as IconPlusOutline16,
+  IconRefreshOutlineRegular as IconRefreshOutline14,
+  IconThinkOutlineRegular as IconThinkOutline14,
+  IconTrashOutlineMedium as IconTrashOutline16,
   MarkdownText,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -69,7 +71,7 @@ interface ControlFace {
 type ControlProps = PropsRuntime<'conversation.input.left'> & PropsLocale<'evolveModes'> & InjectFace<ControlFace>
 
 /** Required browser services for evolve-mode controls and Trajectory projection. */
-export const inject = ['slots', 'locale', 'remote', 'remote.commands', 'conversationEvents']
+export const inject = ['slots', 'locale', 'remote', 'remote.commands', 'uiConversation']
 
 const triggerStyle: CSSProperties = {
   alignItems: 'center',
@@ -326,24 +328,30 @@ function trajectoryContextNode(
   }
 }
 
+function systemMessageText(event: { readonly data: { readonly message: { readonly content: readonly { readonly type: string; readonly text?: string }[] } } }): string {
+  return event.data.message.content
+    .flatMap(block => block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])
+    .join('\n')
+}
+
 const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
   kind: 'evolve-mode-first-principles-injection',
   target: 'trajectory',
-  match: event => event.type === 'request/header'
-    && event.data.header.system?.includes(FIRST_PRINCIPLES) === true
+  match: event => event.type === 'system/message'
+    && systemMessageText(event).includes(FIRST_PRINCIPLES)
     ? { id: String(event.seq), role: 'start' }
     : null,
   start: (_context, match) => {
-    if (match.event.type !== 'request/header') {
-      throw new Error('first-principles Trajectory projection requires request/header')
+    if (match.event.type !== 'system/message') {
+      throw new Error('first-principles Trajectory projection requires system/message')
     }
     return {
       kind: 'context',
       seq: match.event.seq,
       time: match.event.time,
       content: [{ type: 'text', text: FIRST_PRINCIPLES }],
-      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:first-principles' },
-      provenance: { role: 'inject', label: 'dsh-evolve-modes:first-principles' },
+      source: { kind: 'evolve-modes', plugin: 'dsh-evolve-modes:first-principles' },
+      producer: { role: 'inject', label: 'dsh-evolve-modes:first-principles' },
       form: null,
     }
   },
@@ -354,21 +362,21 @@ const firstPrinciplesTrajectoryDefinition: ConversationNodeDefinition<ContextMes
 const grillingTrajectoryDefinition: ConversationNodeDefinition<ContextMessageNode> = {
   kind: 'evolve-mode-grilling-injection',
   target: 'trajectory',
-  match: event => event.type === 'request/header'
-    && event.data.header.system?.includes(GRILLING) === true
+  match: event => event.type === 'system/message'
+    && systemMessageText(event).includes(GRILLING)
     ? { id: String(event.seq), role: 'start' }
     : null,
   start: (_context, match) => {
-    if (match.event.type !== 'request/header') {
-      throw new Error('grilling Trajectory projection requires request/header')
+    if (match.event.type !== 'system/message') {
+      throw new Error('grilling Trajectory projection requires system/message')
     }
     return {
       kind: 'context',
       seq: match.event.seq,
       time: match.event.time,
       content: [{ type: 'text', text: GRILLING }],
-      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:grilling' },
-      provenance: { role: 'inject', label: 'dsh-evolve-modes:grilling' },
+      source: { kind: 'evolve-modes', plugin: 'dsh-evolve-modes:grilling' },
+      producer: { role: 'inject', label: 'dsh-evolve-modes:grilling' },
       form: null,
     }
   },
@@ -390,22 +398,22 @@ const learnedInstructionsTrajectoryDefinition: ConversationNodeDefinition<Contex
   kind: 'evolve-mode-learned-instructions-injection',
   target: 'trajectory',
   match: event => {
-    if (event.type !== 'request/header') return null
-    return learnedInstructionBlock(event.data.header.system) === undefined
+    if (event.type !== 'system/message') return null
+    return learnedInstructionBlock(systemMessageText(event)) === undefined
       ? null
       : { id: String(event.seq), role: 'start' }
   },
   start: (_context, match) => {
-    if (match.event.type !== 'request/header') throw new Error('learned-instructions Trajectory projection requires request/header')
-    const text = learnedInstructionBlock(match.event.data.header.system)
+    if (match.event.type !== 'system/message') throw new Error('learned-instructions Trajectory projection requires system/message')
+    const text = learnedInstructionBlock(systemMessageText(match.event))
     if (text === undefined) throw new Error('learned-instructions Trajectory projection matched without its marker block')
     return {
       kind: 'context',
       seq: match.event.seq,
       time: match.event.time,
       content: [{ type: 'text', text }],
-      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution' },
-      provenance: { role: 'inject', label: 'dsh-evolve-modes:evolution' },
+      source: { kind: 'evolve-modes', plugin: 'dsh-evolve-modes:evolution' },
+      producer: { role: 'inject', label: 'dsh-evolve-modes:evolution' },
       form: null,
     }
   },
@@ -748,9 +756,9 @@ function registerLegacySlot(
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('evolveModes', { en, zh }), 'dsh-evolve-modes: locale')
   ctx.effect(() => ctx.remote.$mount(evolveModesRemote), 'dsh-evolve-modes: evolution Remote')
-  ctx.conversationEvents.register(firstPrinciplesTrajectoryDefinition)
-  ctx.conversationEvents.register(grillingTrajectoryDefinition)
-  ctx.conversationEvents.register(learnedInstructionsTrajectoryDefinition)
+  ctx.uiConversation.events.register(firstPrinciplesTrajectoryDefinition)
+  ctx.uiConversation.events.register(grillingTrajectoryDefinition)
+  ctx.uiConversation.events.register(learnedInstructionsTrajectoryDefinition)
   const execute = async (sessionId: string, line: string): Promise<string> => {
     const remote = ctx.remote as unknown as {
       readonly commands: { execute(sessionId: never, line: string, images: readonly never[]): Promise<CommandExecutionResponse> }

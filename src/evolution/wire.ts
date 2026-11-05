@@ -76,12 +76,12 @@ function descriptor(
       name: 'request',
       wire: 'request',
       source: 'json',
-      codec: { mode: 'strict', typeSymbol: `${PACKAGE}#${requestType}`, schema: requestSchema },
+      codec: { mode: 'strict', typeSymbol: `${PACKAGE}#${requestType}`, create: () => requestSchema },
     }],
     result: {
       mode: 'strict',
       typeSymbol: `${PACKAGE}#EvolutionDashboard`,
-      schema: evolutionDashboardSchema,
+      create: () => evolutionDashboardSchema,
     },
   }
 }

@@ -6,7 +6,7 @@
   <a href="https://github.com/GraySilver/dsh-evolve-modes/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/GraySilver/dsh-evolve-modes/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="https://www.npmjs.com/package/@graysilver/dsh-evolve-modes"><img alt="npm" src="https://img.shields.io/npm/v/@graysilver/dsh-evolve-modes?style=flat-square&label=npm"></a>
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-4D6BFE?style=flat-square"></a>
-  <img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.1.1--rc.2-4D6BFE?style=flat-square">
+  <img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.1--rc.2%20%E2%80%93%20rc.5-4D6BFE?style=flat-square">
 </p>
 
 > 让 Agent 的工作方式可组合、可审查、可持续改进，最终实现 Agent Self Evoling。
@@ -15,7 +15,7 @@
 
 插件不 fork DeepSeek Harness，不复制 Agent loop，也不修改核心代码。安装后，当前任务使用的组合始终显示在输入区旁；全局“自进化模式”设置则负责管理跨会话的学习提议和已批准规则。
 
-> 当前版本 `0.4.0` 支持 DeepSeek Harness `0.1.1-rc.2`。仍使用 Harness `0.1.0-rc.6` 时，请安装插件 `0.3.1`。
+> 当前版本 `0.5.0` 支持 DeepSeek Harness `0.2.1-rc.2` 至 `0.2.1-rc.5`。仍使用 Harness 0.1.x 时，请固定插件 `0.4.1`。
 
 ![dsh-evolve-modes](https://raw.githubusercontent.com/GraySilver/dsh-evolve-modes/main/assets/social-preview.png)
 
@@ -24,13 +24,13 @@
 推荐通过 npm 将固定版本安装到 DeepSeek Harness Web profile：
 
 ```sh
-npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.4.0
+npx -y @deepseek-ai/dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.5.0
 ```
 
 如果已经全局安装 DSH CLI，可以使用简写：
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.4.0
+dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.5.0
 ```
 
 重启 Web profile 后，自进化模式控件会出现在输入区工具旁。打开顶层 **自进化模式** 设置即可管理全局学习规则。
@@ -152,14 +152,14 @@ Evidence
 Concrete follow-up
 ```
 
-审查报告会显示在对应的助手回复下方。质量审查每个完成的父回复增加一次模型调用和相应延迟，但不会自动执行项目的 test、lint 或 build 命令。
+审查 Agent 使用独立的 `evolve-modes-review` preset，只挂载 `read`、`read_image`、`glob` 和 `grep`；它没有 shell、write 或 edit 工具。审查报告会显示在对应的助手回复下方。质量审查每个完成的父回复增加一次模型调用和相应延迟，但不会自动执行项目的 test、lint 或 build 命令。
 
 ## 思考策略与计划
 
-- **第一性原理**：将目标、事实、假设、约束、推导和验证写入 `request/header.system`；Trajectory 会保留同一段指令作为可检查证据。关闭后只影响后续请求，历史证据不会被删除。
+- **第一性原理**：将目标、事实、假设、约束、推导和验证加入系统提示词；DSH 0.2.1 的 `system/message` 事件会让 Trajectory 保留同一段指令作为可检查证据。关闭后只影响后续请求，历史证据不会被删除。
 - **Grilling**：先建立决策及其依赖关系，每轮只提出前置条件已经明确的问题；问题使用编号列表并附推荐答案。Agent 会自行调查可发现的事实，在所有分支明确后总结共同理解并等待用户确认，确认前不会实施。确认后仍按当前“正常/计划”工作模式继续。
 - **计划模式**：委托给官方 `@deepseek-ai/dsh-plan-mode` service，复用 DSH 的计划持久化和 `exit_plan_mode` 审批流程，不重复实现另一套计划系统。
-- **工具策略**：计划和质量审查通过 DSH 的 `tools/pre-execute` pipeline 控制工具；默认允许 `read`、`glob`、`grep`、`read_image`、已配置的平台 shell 和 `exit_plan_mode`。这是一层工作流策略，不是操作系统级 sandbox。
+- **工具策略**：计划模式通过 DSH 的 `tools/pre-execute` pipeline 允许 `read`、`glob`、`grep`、`read_image`、已配置的平台 shell 和 `exit_plan_mode`。质量审查则使用不挂载任何修改工具或 shell 的独立 preset。
 
 ## 命令
 
@@ -189,7 +189,8 @@ Concrete follow-up
 
 | 插件版本 | DeepSeek Harness 版本 | 状态 |
 | --- | --- | --- |
-| `0.4.1` | `0.1.1-rc.2`、`0.1.2-rc.1` | 当前支持；兼容新版值工具拆包，并通过双版本验证 |
+| `0.5.0` | `0.2.1-rc.2` 至 `0.2.1-rc.5` | 当前支持；CI 验证 rc.2 与 rc.5 两个端点 |
+| `0.4.1` | `0.1.1-rc.2`、`0.1.2-rc.1` | 旧 Harness 兼容版本 |
 | `0.4.0` | `0.1.1-rc.2` | 历史兼容版本；新增 Grilling |
 | `0.3.2` | `0.1.1-rc.2` | 历史兼容版本 |
 | `0.3.1` | `0.1.0-rc.6` | 历史兼容版本 |
@@ -199,7 +200,7 @@ Concrete follow-up
 
 `0.3.2` 使用了 Harness `0.1.1-rc.2` 新增的命令附件参数和严格 storage domain 类型，因此不向后兼容 `0.1.0-rc.6`。生产环境建议同时固定插件与 Harness 版本，不要依赖浮动标签。
 
-Harness `0.1.2-rc.1` 移除了旧的逐轮尾部和命令视图 slot。插件会通过能力检测跳过这两个旧 UI 扩展点；审查命令和持久化记录仍然可用，但逐轮内嵌审查只在 `0.1.1-rc.2` UI 中显示。
+`0.5.0` 迁移到 Harness 0.2.1 的 agent preset registry、`system/message`、新版客户端 UI service 和 subagent activation API，因此不与 Harness 0.1.x 共用同一个插件包。
 
 bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时才覆盖：
 
@@ -209,7 +210,7 @@ bundle 会自动选择平台 shell。只有目标 profile 已注册该工具时�
     shellTool: bash
 ```
 
-质量审查要求 DSH 的 fork/subagent capability；自进化分析要求 DSH 的直接 `llm` service；计划模式要求官方 `planMode` service 和工具注册表。插件需要支持 Web plugin loader、client UI slots、storage domain、Trajectory 和上述 DSH 服务的 DeepSeek Harness 版本。
+质量审查要求 DSH 的 spawn/subagent capability 和本插件注册的只读 preset；自进化分析要求 DSH 的直接 `llm` service；计划模式要求官方 `planMode` service 和工具注册表。插件需要支持 Web plugin loader、client UI slots、storage domain、Trajectory 和上述 DSH 服务的 DeepSeek Harness 版本。
 
 插件状态保存在自己的 storage domain，可跨服务重启和会话重新加载继续使用。`0.3.0` 会自动迁移旧版本的会话设置、提议、已批准规则、备份和学习记录，不会覆盖已经存在的新名称数据。
 

@@ -345,7 +345,7 @@ describe('isolated self-evolution LLM call', () => {
     expect(request.messages).toHaveLength(1)
     expect(request.messages[0]).toMatchObject({
       role: 'user',
-      source: { kind: 'plugin', plugin: 'dsh-evolve-modes:evolution-learning' },
+      source: { kind: 'evolve-modes', plugin: 'dsh-evolve-modes:evolution-learning' },
       content: [{ type: 'text', text: '{"mode":"analyze","input":{"messages":[]}}' }],
     })
     expect(JSON.stringify(request)).not.toContain('Inherited AGENTS.md')

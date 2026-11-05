@@ -3,3 +3,27 @@
       name: '@graysilver/dsh-evolve-modes'
       config:
         shellTool: !!js "process.platform === 'win32' ? 'pwsh' : 'bash'"
+    - id: preset-evolve-modes-review
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: evolve-modes-review
+        name: Evolve Modes Review
+        description: Read-only repository inspection for Evolve Modes quality reviews.
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: You are an independent quality reviewer. Inspect evidence without modifying the workspace.
+              complete: true
+              includeRuntimeContext: false
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: false
+              edit: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false

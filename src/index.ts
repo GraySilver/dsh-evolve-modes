@@ -1,7 +1,7 @@
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-plan-mode'
 import type {} from '@deepseek-ai/dsh-storage-domain'
@@ -42,8 +42,9 @@ import type {
   EvolveModeReview,
 } from './types.ts'
 
-const READ_ONLY_REVIEW_TOOLS = ['read', 'glob', 'grep', 'read_image'] as const
+const PLAN_INSPECTION_TOOLS = ['read', 'glob', 'grep', 'read_image'] as const
 const PLAN_EXIT_TOOL = 'exit_plan_mode'
+const REVIEW_AGENT_PRESET = 'evolve-modes-review'
 
 export interface Config { shellTool: 'bash' | 'pwsh' }
 export const Config: z<Config> = z.object({ shellTool: z.union(['bash', 'pwsh'] as const).required() })
@@ -56,7 +57,7 @@ interface ReviewInput {
 
 /** Return the complete Plan-mode allow-list for a configured platform shell. */
 export function planAllowedTools(shellTool: Config['shellTool']): readonly string[] {
-  return [...READ_ONLY_REVIEW_TOOLS, shellTool, PLAN_EXIT_TOOL]
+  return [...PLAN_INSPECTION_TOOLS, shellTool, PLAN_EXIT_TOOL]
 }
 
 /** Test whether a requested tool may execute while official Plan mode is active. */
@@ -102,7 +103,7 @@ function currentTurnInput(agent: Agent, turn: number): ReviewInput | undefined {
       if (plan !== undefined) planCalls.set(String(event.data.callId), plan)
       continue
     }
-    if (event.type === 'tool/result' && event.data.message.content[0].isError !== true) {
+    if (event.type === 'tool/result' && event.data.message.isError !== true) {
       const plan = planCalls.get(String(event.data.message.source.callId))
       if (plan !== undefined) approvedPlan = plan
     }
@@ -117,7 +118,7 @@ function currentTurnInput(agent: Agent, turn: number): ReviewInput | undefined {
 export function reviewPrompt(profile: ReviewProfile, input: ReviewInput): string {
   const subject = input.candidateKind === 'approved-plan' ? 'Approved plan' : 'Candidate answer'
   if (profile === 'general-review') {
-    return `Review the current task and ${subject.toLowerCase()}. Identify unmet requirements, unsupported claims, omissions, regressions, counterexamples, and security risks. Use inspection tools only when evidence is needed. The shell is for non-mutating inspection only. Do not modify files or start background processes. Return a structured Markdown verdict with evidence and concrete follow-up actions.\n\nCurrent task:\n${input.task}\n\n${subject}:\n${input.candidate}`
+    return `Review the current task and ${subject.toLowerCase()}. Identify unmet requirements, unsupported claims, omissions, regressions, counterexamples, and security risks. Use the provided read-only inspection tools only when evidence is needed. Do not modify files or start background processes. Return a structured Markdown verdict with evidence and concrete follow-up actions.\n\nCurrent task:\n${input.task}\n\n${subject}:\n${input.candidate}`
   }
   return `Independently assess whether the ${subject.toLowerCase()} satisfies the current task. Compare every explicit requirement with the available evidence and the approved plan when one is present. Do not modify files, retry work, or run project test, lint, or build commands. Use inspection tools only when evidence is needed. Return a concise Markdown checklist with these headings: Met, Gap, Unverified, Evidence, and Concrete follow-up. Every checklist item must name the requirement it addresses.\n\nCurrent task:\n${input.task}\n\n${subject}:\n${input.candidate}`
 }
@@ -127,20 +128,23 @@ async function reviewTurn(
   agent: Agent,
   turn: number,
   signal: AbortSignal,
-  shellTool: Config['shellTool'],
   profile: ReviewProfile,
 ): Promise<EvolveModeReview | undefined> {
   const input = currentTurnInput(agent, turn)
   if (input === undefined) return undefined
   const unavailable = (text: string): EvolveModeReview => ({ turn, profile, status: 'unavailable', text, createdAt: Date.now() })
-  if (scope.subagents.getProvider('fork') === undefined) return unavailable('The fork subagent provider is unavailable.')
+  if (scope.subagents.getProvider('spawn') === undefined) return unavailable('The spawn subagent provider is unavailable.')
   try {
-    const run = await scope.subagents.start('fork', {
-      parent: agent,
-      signal,
+    const run = await scope.subagents.startActivation({
+      provider: 'spawn',
       label: profile,
-      toolFilter: { allow: [...READ_ONLY_REVIEW_TOOLS, shellTool] },
-      prompt: [{ type: 'text', text: reviewPrompt(profile, input) }],
+      delivery: 'caller',
+      signal,
+      request: {
+        parent: agent,
+        agentPreset: REVIEW_AGENT_PRESET,
+        prompt: [{ type: 'text', text: reviewPrompt(profile, input) }],
+      },
     })
     try {
       const result = await run.result
@@ -342,7 +346,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       const [review] = await Promise.all([
         state.quality === 'off'
           ? Promise.resolve(undefined)
-          : reviewTurn(scope, agent, turn, signal, config.shellTool, state.quality),
+          : reviewTurn(scope, agent, turn, signal, state.quality),
         batch.length === 0
           ? Promise.resolve()
           : learnFromTurns(scope, agent, batch, signal, evolutionStore, records),

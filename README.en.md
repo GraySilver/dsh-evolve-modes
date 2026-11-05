@@ -6,7 +6,7 @@
 
 No fork of DeepSeek Harness. No duplicate agent loop. Install the plugin, choose a combination, and keep that decision visible in every session.
 
-> Release `0.4.0` supports DeepSeek Harness `0.1.1-rc.2`. If you remain on Harness `0.1.0-rc.6`, install plugin `0.3.1`.
+> Release `0.5.0` supports DeepSeek Harness `0.2.1-rc.2` through `0.2.1-rc.5`. Pin plugin `0.4.1` when remaining on Harness 0.1.x.
 
 [中文文档](README.md)
 
@@ -46,7 +46,7 @@ This is not a collection of mutually exclusive modes. It is a small operating mo
 Install the pinned npm release into the DeepSeek Harness Web profile:
 
 ```sh
-dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.4.0
+dsh plugin --profile web add @graysilver/dsh-evolve-modes@0.5.0
 ```
 
 Restart the Web profile. The self-evolution mode control appears beside the composer tools.
@@ -62,9 +62,9 @@ Git-hosted plugins execute install-time code, so install only revisions you trus
 ## Built for Real Agent Work
 
 - **One visible decision point.** The selected combination stays readable beside the composer instead of scattering state across separate controls.
-- **First-principles reasoning you can inspect.** The extra instruction is persisted in `request/header.system` and appears in Trajectory as evidence of what the model received.
+- **First-principles reasoning you can inspect.** The extra instruction is persisted through DSH 0.2.1's `system/message` event and appears in Trajectory as evidence of what the model received.
 - **Plan mode without a competing implementation.** Plan delegates to the official DSH Plan service, its persisted `plan/mode` event, and its `exit_plan_mode` approval workflow.
-- **Independent review where it matters.** Adversarial and Acceptance review run as a forked agent after each completed parent response and render a Markdown report directly below that response.
+- **Independent review where it matters.** Adversarial and Acceptance review run as an independently spawned, read-only agent after each completed parent response and render a Markdown report directly below that response.
 - **No hidden rewriting.** Reviews identify evidence, gaps, and concrete follow-up actions, but never silently alter, retry, or fix the parent answer.
 - **Propose before activation.** The learning agent may only create evidence-backed proposals. A rule reaches the system prompt only after human approval.
 - **A plugin-owned Settings page.** The top-level Self-evolution mode page manages global learning thresholds, pending proposals, rules, backups, and learning runs.
@@ -116,13 +116,13 @@ Plan review does not delay or gate official `exit_plan_mode` approval. When the 
 
 ### First-principles evidence
 
-The First principles section is persisted in `request/header.system`. Trajectory projects that exact section as a context-style inspection row, so historical requests show the instruction the model received. It does not append a user message or create an artificial transcript event. Turning the strategy off removes the section from later requests while earlier rows remain as historical evidence.
+The First principles section is persisted in DSH 0.2.1's `system/message`. Trajectory projects that exact section as a context-style inspection row, so historical requests show the instruction the model received. It does not append a user message or create an artificial transcript event. Turning the strategy off removes the section from later requests while earlier rows remain as historical evidence.
 
 Grilling maps decisions and their prerequisites, asks only the currently ready questions in numbered rounds, and includes a recommendation for every question. The agent investigates discoverable facts itself. Once every relevant branch is resolved, it summarizes the shared understanding and waits for explicit confirmation before acting; after confirmation, the current Execute or Plan working state still controls how work proceeds. Its injected instruction is also preserved in Trajectory.
 
 ### Review behavior and limits
 
-Both reviewers can inspect with `read`, `glob`, `grep`, `read_image`, and the configured platform shell. Their prompts request non-mutating inspection, but prompt restrictions are not an operating-system sandbox. A review failure is persisted as unavailable and never blocks the parent response or Plan approval.
+Both reviewers run with the dedicated `evolve-modes-review` preset, which mounts only `read`, `read_image`, `glob`, and `grep`. It provides no shell, write, or edit tool. A review failure is persisted as unavailable and never blocks the parent response or Plan approval.
 
 Quality review adds one model call and corresponding latency per completed parent answer. It does not auto-detect or execute project test, lint, or build commands.
 
@@ -170,13 +170,14 @@ The bundle selects the normal platform shell automatically. Override it only whe
     shellTool: bash
 ```
 
-Quality review requires DSH's fork/subagent capability; self-evolution analysis requires DSH's direct `llm` service. Plan mode requires DSH's official `planMode` service and tool registry. Self-evolution adds one isolated model call per completed batch; failed runs appear in Settings and keep the unfinished batch available for a later retry.
+Quality review requires DSH's spawn/subagent capability and the read-only preset registered by this plugin; self-evolution analysis requires DSH's direct `llm` service. Plan mode requires DSH's official `planMode` service and tool registry. Self-evolution adds one isolated model call per completed batch; failed runs appear in Settings and keep the unfinished batch available for a later retry.
 
 ## Compatibility
 
 | Plugin version | DeepSeek Harness version | Status |
 | --- | --- | --- |
-| `0.4.1` | `0.1.1-rc.2`, `0.1.2-rc.1` | Current; handles the value-utility package split and passes both compatibility lanes |
+| `0.5.0` | `0.2.1-rc.2` through `0.2.1-rc.5` | Current; CI verifies the rc.2 and rc.5 endpoints |
+| `0.4.1` | `0.1.1-rc.2`, `0.1.2-rc.1` | Compatibility release for older Harness versions |
 | `0.4.0` | `0.1.1-rc.2` | Historical compatibility release; adds Grilling |
 | `0.3.2` | `0.1.1-rc.2` | Historical compatibility release |
 | `0.3.1` | `0.1.0-rc.6` | Historical compatibility release |
@@ -186,9 +187,9 @@ Starting with `0.3.2`, every plugin release updates this table and declares its 
 
 Release `0.3.2` uses the command attachment argument and strict storage-domain types introduced by Harness `0.1.1-rc.2`, so it is not backward-compatible with `0.1.0-rc.6`. Pin both the plugin and Harness versions in production instead of relying on floating tags.
 
-Harness `0.1.2-rc.1` removes the legacy per-turn tail and command-view slots. The plugin capability-checks and skips those two old UI extensions; review commands and persisted records remain available, while inline per-turn review rendering is limited to the `0.1.1-rc.2` UI.
+Release `0.5.0` migrates to Harness 0.2.1's agent preset registry, `system/message`, client UI services, and subagent activation API, so it does not share one package artifact with Harness 0.1.x.
 
-Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, forked subagents for quality review, the official Plan mode service, and the DSH tools pipeline. Pinned npm releases are the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
+Requires a DeepSeek Harness release that provides the Web plugin loader, client UI slots, storage domains, the direct `llm` service, spawned subagents for quality review, the official Plan mode service, and the DSH tools pipeline. Pinned npm releases are the recommended stable distribution channel; pinned Git revisions remain useful for source auditing and development.
 
 ## Feedback
 
